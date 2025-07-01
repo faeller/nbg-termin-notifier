@@ -16,7 +16,7 @@ const store = useAppointmentStore()
 const isDark = ref(false)
 const showSettings = ref(false)
 const backgroundImageUrl = ref('')
-const pollingMinutes = ref(0.5)
+const pollingSeconds = ref(15)
 const analyticsEnabled = ref(false)
 
 const theme = computed(() => isDark.value ? darkTheme : null)
@@ -58,7 +58,7 @@ async function requestNotifications() {
 }
 
 function updatePollingFrequency() {
-  store.setPollingFrequency(pollingMinutes.value * 60 * 1000)
+  store.setPollingFrequency(pollingSeconds.value * 1000)
 }
 
 function setBackgroundImage() {
@@ -96,7 +96,7 @@ onMounted(() => {
   isDark.value = savedTheme === 'dark'
   
   // Initialize polling frequency
-  pollingMinutes.value = store.pollingFrequency / (60 * 1000)
+  pollingSeconds.value = store.pollingFrequency / 1000
   
   // Load background image from localStorage
   const savedBackgroundImage = localStorage.getItem('backgroundImage')
@@ -185,13 +185,13 @@ onUnmounted(() => {
                 <n-space align="center">
                   <n-text>Alle</n-text>
                   <n-input-number 
-                    v-model:value="pollingMinutes" 
-                    :min="1" 
-                    :max="60" 
+                    v-model:value="pollingSeconds" 
+                    :min="5" 
+                    :max="300" 
                     @update:value="updatePollingFrequency"
                     style="width: 120px"
                   />
-                  <n-text>Minuten prüfen</n-text>
+                  <n-text>Sekunden prüfen</n-text>
                 </n-space>
               </n-card>
 
