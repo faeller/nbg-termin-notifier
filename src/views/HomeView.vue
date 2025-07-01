@@ -14,7 +14,8 @@ import CountdownTimer from '../components/CountdownTimer.vue'
 const store = useAppointmentStore()
 const message = useMessage()
 
-const isPolling = ref(false)
+// Use store's polling state instead of local ref
+const isPolling = computed(() => store.isPollingActive)
 
 
 function toggleAppointmentType(appointmentTypeId: number) {
@@ -45,14 +46,12 @@ function startPolling() {
   }
 
   store.startPolling()
-  isPolling.value = true
-  message.success('Überwachung gestartet!')
+  message.success('Hintergrund-Überwachung gestartet!')
 }
 
 function stopPolling() {
   store.stopPolling()
-  isPolling.value = false
-  message.info('Überwachung gestoppt!')
+  message.info('Hintergrund-Überwachung gestoppt!')
 }
 
 function openReservationLink(url: string) {
@@ -128,7 +127,7 @@ onUnmounted(() => {
       <n-card title="Automatische Aktualisierung" size="medium">
         <n-space align="center" justify="space-between">
           <n-space align="center">
-            <n-switch v-model:value="isPolling" @update:value="isPolling ? startPolling() : stopPolling()"
+            <n-switch :value="isPolling" @update:value="(value) => value ? startPolling() : stopPolling()"
               :disabled="store.selectedAppointmentTypes.length === 0 || !store.hasNotificationPermission">
               <template #checked>
                 <n-icon>
@@ -141,15 +140,15 @@ onUnmounted(() => {
                 </n-icon>
               </template>
             </n-switch>
-            <n-text>{{ isPolling ? 'Überwachung aktiv' : 'Überwachung gestoppt' }}</n-text>
+            <n-text>{{ isPolling ? 'Hintergrund-Überwachung aktiv' : 'Hintergrund-Überwachung gestoppt' }}</n-text>
           </n-space>
 
           <n-space align="center" size="small">
             <n-icon size="14">
               <Clock />
             </n-icon>
-            <n-text depth="2">Alle 15 Sekunden</n-text>
-            <CountdownTimer :interval-ms="15000" :is-active="isPolling" compact />
+            <n-text depth="2">Alle {{ store.pollingFrequency / 1000 }} Sekunden</n-text>
+            <CountdownTimer :interval-ms="store.pollingFrequency" :is-active="isPolling" compact />
           </n-space>
         </n-space>
 

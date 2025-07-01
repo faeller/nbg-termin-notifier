@@ -23,6 +23,9 @@ export const useAppointmentStore = defineStore('appointments', () => {
   const error = ref<string | null>(null)
   const notificationPermission = ref<NotificationPermission>(notificationService.getPermissionStatus())
   const pollingInterval = ref<number | null>(null)
+  // Load polling state from localStorage with default fallback
+  const savedPollingState = localStorage.getItem('isPollingActive')
+  const isPollingActive = ref(savedPollingState === 'true')
   // Load polling frequency from localStorage with default fallback
   const savedPollingFrequency = localStorage.getItem('pollingFrequency')
   const pollingFrequency = ref(savedPollingFrequency ? parseInt(savedPollingFrequency) : 15000) // 15 seconds default
@@ -151,6 +154,9 @@ export const useAppointmentStore = defineStore('appointments', () => {
     }, pollingFrequency.value)
     // Also start background worker
     backgroundWorkerService.startWorker()
+    // Save polling state
+    isPollingActive.value = true
+    localStorage.setItem('isPollingActive', 'true')
   }
 
   function stopPolling() {
@@ -160,6 +166,9 @@ export const useAppointmentStore = defineStore('appointments', () => {
     }
     // Also stop background worker
     backgroundWorkerService.stopWorker()
+    // Save polling state
+    isPollingActive.value = false
+    localStorage.setItem('isPollingActive', 'false')
   }
 
   function setPollingFrequency(frequency: number) {
@@ -246,6 +255,11 @@ export const useAppointmentStore = defineStore('appointments', () => {
     selectedAppointmentTypes.value.forEach(appointmentTypeId => {
       fetchAppointmentData(appointmentTypeId)
     })
+    
+    // Restore polling state if it was active
+    if (isPollingActive.value && selectedAppointmentTypes.value.length > 0) {
+      startPolling()
+    }
   }
 
   return {
@@ -255,6 +269,7 @@ export const useAppointmentStore = defineStore('appointments', () => {
     error,
     notificationPermission,
     pollingFrequency,
+    isPollingActive,
     backgroundImage,
     activeSubscriptions,
     showFilterModal,
