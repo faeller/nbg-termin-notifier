@@ -5,7 +5,10 @@ import { notificationService, NotificationPermission } from '../services/notific
 import { backgroundWorkerService, type SubscriptionConfig } from '../services/backgroundWorkerService'
 
 export const useAppointmentStore = defineStore('appointments', () => {
-  const selectedAppointmentTypes = ref<number[]>([])
+  // Load selectedAppointmentTypes from localStorage
+  const savedSelectedTypes = localStorage.getItem('selectedAppointmentTypes')
+  const selectedAppointmentTypes = ref<number[]>(savedSelectedTypes ? JSON.parse(savedSelectedTypes) : [])
+  
   const appointmentData = ref<Map<number, AppointmentData[]>>(new Map())
   const lastKnownTimestamps = ref<Map<number, number>>(new Map())
   const isLoading = ref(false)
@@ -13,7 +16,11 @@ export const useAppointmentStore = defineStore('appointments', () => {
   const notificationPermission = ref<NotificationPermission>(notificationService.getPermissionStatus())
   const pollingInterval = ref<number | null>(null)
   const pollingFrequency = ref(15000) // 15 seconds
-  const backgroundImage = ref<string | null>(null)
+  
+  // Load backgroundImage from localStorage
+  const savedBackgroundImage = localStorage.getItem('backgroundImage')
+  const backgroundImage = ref<string | null>(savedBackgroundImage)
+  
   const activeSubscriptions = ref<SubscriptionConfig[]>([])
   const showFilterModal = ref(false)
   const filterModalAppointmentType = ref<number>(0)
@@ -92,6 +99,9 @@ export const useAppointmentStore = defineStore('appointments', () => {
       appointmentData.value.delete(appointmentTypeId)
       lastKnownTimestamps.value.delete(appointmentTypeId)
     }
+    
+    // Save to localStorage
+    localStorage.setItem('selectedAppointmentTypes', JSON.stringify(selectedAppointmentTypes.value))
   }
 
   function startPolling() {
@@ -181,6 +191,13 @@ export const useAppointmentStore = defineStore('appointments', () => {
     return getSubscriptionsForAppointmentType(appointmentTypeId).some(sub => sub.filters.enabled)
   }
 
+  // Initialize store - load data for previously selected appointment types
+  function initializeStore() {
+    selectedAppointmentTypes.value.forEach(appointmentTypeId => {
+      fetchAppointmentData(appointmentTypeId)
+    })
+  }
+
   return {
     selectedAppointmentTypes,
     appointmentData,
@@ -210,6 +227,7 @@ export const useAppointmentStore = defineStore('appointments', () => {
     openFilterModal,
     closeFilterModal,
     getSubscriptionsForAppointmentType,
-    hasActiveFilters
+    hasActiveFilters,
+    initializeStore
   }
 })

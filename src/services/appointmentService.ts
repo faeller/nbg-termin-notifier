@@ -47,6 +47,64 @@ export const appointmentTypes: AppointmentType[] = [
       { shortName: 'Bürgeramt Süd', departmentName: null, locationIds: [14] },
       { shortName: 'Bürgerdienste in den Sparkassen', departmentName: null, locationIds: [38, 37, 28, 39] }
     ]
+  },
+  {
+    id: 2,
+    name: 'Personalausweis beantragen',
+    concernIds: [38],
+    locations: [
+      { shortName: 'Bürgeramt Mitte', departmentName: null, locationIds: [4] },
+      { shortName: 'Bürgeramt Eberhardshof', departmentName: null, locationIds: [116] },
+      { shortName: 'Bürgeramt Frankenstraße', departmentName: null, locationIds: [64] },
+      { shortName: 'Bürgeramt Nord', departmentName: 'Einwohnermelde- und Passangelegenheiten, Führerscheine, Beglaubigungen', locationIds: [34] },
+      { shortName: 'Bürgeramt Ost', departmentName: null, locationIds: [24] },
+      { shortName: 'Bürgeramt Süd', departmentName: null, locationIds: [14] },
+      { shortName: 'Bürgerdienste in den Sparkassen', departmentName: null, locationIds: [38, 37, 28, 39] }
+    ]
+  },
+  {
+    id: 3,
+    name: 'Vorläufigen Personalausweis beantragen',
+    concernIds: [51],
+    locations: [
+      { shortName: 'Bürgeramt Mitte', departmentName: null, locationIds: [45] },
+      { shortName: 'Bürgeramt Frankenstraße', departmentName: null, locationIds: [64] },
+      { shortName: 'Bürgeramt Nord', departmentName: 'Einwohnermelde- und Passangelegenheiten, Führerscheine, Beglaubigungen', locationIds: [34] },
+      { shortName: 'Bürgeramt Ost', departmentName: null, locationIds: [24] },
+      { shortName: 'Bürgeramt Süd', departmentName: null, locationIds: [14] }
+    ]
+  },
+  {
+    id: 4,
+    name: 'Reisepass beantragen',
+    concernIds: [40],
+    locations: [
+      { shortName: 'Bürgeramt Mitte', departmentName: null, locationIds: [4] },
+      { shortName: 'Bürgeramt Eberhardshof', departmentName: null, locationIds: [116] },
+      { shortName: 'Bürgeramt Frankenstraße', departmentName: null, locationIds: [64] },
+      { shortName: 'Bürgeramt Nord', departmentName: 'Einwohnermelde- und Passangelegenheiten, Führerscheine, Beglaubigungen', locationIds: [34] },
+      { shortName: 'Bürgeramt Ost', departmentName: null, locationIds: [24] },
+      { shortName: 'Bürgeramt Süd', departmentName: null, locationIds: [14] },
+      { shortName: 'Bürgerdienste in den Sparkassen', departmentName: null, locationIds: [38, 37, 28, 39] }
+    ]
+  },
+  {
+    id: 5,
+    name: 'Neues Fahrzeug anmelden',
+    concernIds: [81, 71, 396],
+    locations: [
+      { shortName: 'Ordnungsamt', departmentName: 'Bürgerdienste Mobilität', locationIds: [5, 5] },
+      { shortName: 'Bürgeramt Ost', departmentName: null, locationIds: [32, 32] },
+      { shortName: 'Bürgeramt Süd', departmentName: null, locationIds: [12, 12] }
+    ]
+  },
+  {
+    id: 6,
+    name: 'Geschlechtseintrag ändern',
+    concernIds: [313],
+    locations: [
+      { shortName: 'Bürgeramt Mitte', departmentName: 'Standesamt - Urkunden', locationIds: [22] }
+    ]
   }
 ]
 

@@ -78,9 +78,12 @@ const showSubscriptionManager = ref(false)
 
 
 onMounted(() => {
-  // Initialize selected appointment types if needed
-  if (store.selectedAppointmentTypes.length === 0) {
-    // Add default appointment type (Wohnung anmelden)
+  // Initialize store - load data for previously selected appointment types
+  store.initializeStore()
+  
+  // Only add default appointment type if this is the first time using the app
+  if (store.selectedAppointmentTypes.length === 0 && !localStorage.getItem('selectedAppointmentTypes')) {
+    // Add default appointment type (Wohnung anmelden) for first-time users
     store.toggleAppointmentType(1)
   }
 
@@ -176,8 +179,8 @@ onUnmounted(() => {
                       </n-icon>
                     </template>
                     <n-badge 
-                      :value="store.activeSubscriptions.filter(s => s.filters.enabled).length"
-                      :show="store.activeSubscriptions.filter(s => s.filters.enabled).length > 0" 
+                      :value="store.getSubscriptionsForAppointmentType(appointmentType.id).filter(s => s.filters.enabled).length"
+                      :show="store.getSubscriptionsForAppointmentType(appointmentType.id).filter(s => s.filters.enabled).length > 0" 
                       type="success"
                       :size="12"
                       style="margin-left: 4px;"
