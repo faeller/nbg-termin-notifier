@@ -34,12 +34,29 @@ function getTranslatedAppointmentName(name: string): string {
   return key ? t(key) : name
 }
 
+// Track which appointment types are expanded (default to collapsed for enabled types)
+const expandedAppointmentTypes = ref<number[]>([])
+
+// Computed property to determine if an appointment type should be expanded
+const isAppointmentTypeExpanded = computed(() => (appointmentTypeId: number) => {
+  return expandedAppointmentTypes.value.includes(appointmentTypeId)
+})
+
+// Function to ensure appointment type starts collapsed when enabled
+function ensureCollapsed(appointmentTypeId: number) {
+  if (expandedAppointmentTypes.value.includes(appointmentTypeId)) {
+    expandedAppointmentTypes.value = expandedAppointmentTypes.value.filter(id => id !== appointmentTypeId)
+  }
+}
+
 
 function toggleAppointmentType(appointmentTypeId: number) {
   store.toggleAppointmentType(appointmentTypeId)
 
   if (store.selectedAppointmentTypes.includes(appointmentTypeId)) {
     message.success('Termintyp hinzugefügt!')
+    // Auto-collapse the newly enabled appointment type
+    ensureCollapsed(appointmentTypeId)
     if (!isPolling.value && store.hasNotificationPermission) {
       startPolling()
     }
@@ -117,6 +134,11 @@ onMounted(() => {
     // Add default appointment type (Wohnung anmelden) for first-time users
     store.toggleAppointmentType(1)
   }
+
+  // Ensure all enabled appointment types start collapsed
+  store.selectedAppointmentTypes.forEach(appointmentTypeId => {
+    ensureCollapsed(appointmentTypeId)
+  })
 
   // Load existing subscriptions
   store.refreshSubscriptions()
@@ -241,7 +263,8 @@ onUnmounted(() => {
 
                 <!-- Appointments List -->
                 <div v-else-if="store.selectedAppointmentTypes.includes(appointmentType.id)">
-                  <n-collapse>
+                  <n-collapse :value="isAppointmentTypeExpanded(appointmentType.id) ? [appointmentType.id] : []" 
+                    @update:value="(value: number[]) => expandedAppointmentTypes = value">
                     <n-collapse-item :title="t('appointments.title')" :name="appointmentType.id" style="padding: 8px 0;">
                       <template #header-extra>
                         <n-badge :value="store.getAvailableAppointments(appointmentType.id).length"
