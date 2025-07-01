@@ -29,7 +29,8 @@ const backgroundStyle = computed(() => {
       backgroundImage: `url(${store.backgroundImage})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
-      backgroundAttachment: 'fixed'
+      backgroundAttachment: 'fixed',
+      minHeight: '100vh'
     }
   }
   return {}
@@ -98,27 +99,33 @@ onMounted(() => {
           }"
           :style="backgroundStyle"
         >
-          <n-page-header title="Nürnberg Termin Notifier" subtitle="Benachrichtigungen für verfügbare Termine">
-            <template #extra>
-              <n-space>
-                <n-switch v-model:value="isDark" @update:value="toggleTheme">
-                  <template #checked>🌙</template>
-                  <template #unchecked>☀️</template>
-                </n-switch>
-                <n-button @click="showSettings = true" quaternary circle>
-                  <template #icon>
-                    <n-icon><Settings /></n-icon>
-                  </template>
-                </n-button>
-              </n-space>
-            </template>
-          </n-page-header>
+          <div class="custom-header">
+            <h1 class="app-title">Nürnberg Termin Notifier</h1>
+            <n-space align="center" :size="12">
+              <n-switch 
+                v-model:value="isDark" 
+                @update:value="toggleTheme"
+                size="large"
+              >
+                <template #checked>🌙</template>
+                <template #unchecked>☀️</template>
+              </n-switch>
+              <n-button 
+                @click="showSettings = true" 
+                quaternary 
+                circle
+                size="large"
+              >
+                <template #icon>
+                  <n-icon><Settings /></n-icon>
+                </template>
+              </n-button>
+            </n-space>
+          </div>
           
-          <n-layout style="min-height: calc(100vh - 120px)">
-            <n-layout-content :native-scrollbar="false" style="padding: 24px">
-              <RouterView />
-            </n-layout-content>
-          </n-layout>
+          <div class="main-content">
+            <RouterView />
+          </div>
 
           <!-- Settings Modal -->
           <n-modal v-model:show="showSettings" preset="card" title="Einstellungen" style="width: 600px">
@@ -184,17 +191,86 @@ onMounted(() => {
   position: relative;
 }
 
+.app-container.has-background.dark-theme::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.app-container > * {
+  position: relative;
+  z-index: 2;
+}
+
+.custom-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  margin-bottom: 0;
+  min-height: 64px;
+}
+
+
+.app-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-color-1);
+  line-height: 1.2;
+}
+
+.main-content {
+  padding: 24px;
+}
+
+.app-container.has-background {
+  padding-top: 16px;
+}
+
+.app-container.has-background .custom-header {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 12px 12px 0 0;
+  margin: 0 16px 0px 16px;
+}
+
+.app-container.has-background.dark-theme .custom-header {
+  background-color: rgba(16, 16, 20, 0.8) !important;
+}
+
+.app-container.has-background .main-content {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(8px);
+  border-radius: 0 0 12px 12px;
+  margin: 0 16px 16px 16px;
+  padding: 32px;
+}
+
+.app-container.has-background.dark-theme .main-content {
+  background-color: rgba(16, 16, 20, 0.4) !important;
+  backdrop-filter: blur(8px);
+}
+
 .app-container.has-background :deep(.n-card),
 .app-container.has-background :deep(.n-modal),
-.app-container.has-background :deep(.n-page-header) {
-  background-color: rgba(255, 255, 255, 0.9) !important;
-  backdrop-filter: blur(10px);
+.app-container.has-background :deep(.n-alert),
+.app-container.has-background :deep(.n-collapse-item) {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(8px);
 }
 
 .app-container.has-background.dark-theme :deep(.n-card),
 .app-container.has-background.dark-theme :deep(.n-modal),
-.app-container.has-background.dark-theme :deep(.n-page-header) {
-  background-color: rgba(16, 16, 20, 0.9) !important;
-  backdrop-filter: blur(10px);
+.app-container.has-background.dark-theme :deep(.n-alert),
+.app-container.has-background.dark-theme :deep(.n-collapse-item) {
+  background-color: rgba(16, 16, 20, 0.6) !important;
+  backdrop-filter: blur(8px);
 }
 </style>

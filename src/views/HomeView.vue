@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { 
   NGrid, NGridItem, NCard, NSpace, NButton, NIcon, NText, NTime, NAlert,
-  NSpin, NEmpty, NSwitch, NCollapse, NCollapseItem, NBadge, NH3
+  NSpin, NEmpty, NSwitch, NCollapse, NCollapseItem, NBadge
 } from 'naive-ui'
 import { Bell, BellOff, Clock, MapPin, ExternalLink } from '@vicons/tabler'
 import { useAppointmentStore } from '../stores/appointments'
@@ -75,7 +75,7 @@ onUnmounted(() => {
 <template>
   <div>
     <!-- Header Section -->
-    <n-space vertical size="large">
+    <n-space vertical size="medium">
       <n-card title="Überwachung" size="medium">
         <n-space align="center" justify="space-between">
           <n-space align="center">
@@ -111,9 +111,9 @@ onUnmounted(() => {
 
       <!-- Appointment Types Grid -->
       <div>
-        <n-h3 prefix="bar" style="margin-bottom: 16px">
+        <h3 class="section-title">
           Verfügbare Termintypen
-        </n-h3>
+        </h3>
         
         <n-grid :cols="1" :x-gap="16" :y-gap="16" responsive="screen">
           <n-grid-item 
@@ -220,18 +220,17 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.section-title {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color-1);
+}
+
 .selected-appointment {
   border: 2px solid var(--primary-color);
 }
 
-.n-card {
-  transition: all 0.3s ease;
-}
-
-.n-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
 
 @media (min-width: 768px) {
   .n-grid {
