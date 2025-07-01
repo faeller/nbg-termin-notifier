@@ -7,7 +7,7 @@ import naive from 'naive-ui'
 import App from './App.vue'
 import router from './router'
 import { backgroundWorkerService } from './services/backgroundWorkerService'
-import { i18n } from './i18n'
+import { i18n, updatePageTitle } from './i18n'
 
 const app = createApp(App)
 
@@ -20,6 +20,9 @@ app.mount('#app')
 
 // Initialize background worker service
 console.log('Background worker service initialized:', backgroundWorkerService)
+
+// Set initial page title
+updatePageTitle()
 
 // Expose for debugging in console
 ;(window as any).debugBackgroundWorker = {

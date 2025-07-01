@@ -3,7 +3,7 @@
   <template v-if="compact">
     <n-space align="center" size="small">
       <n-text depth="3" style="font-size: 10px;">
-        Aktualisiere Daten: {{ formatTime(secondsLeft) }}
+        {{ t('countdown.updating') }}: {{ formatTime(secondsLeft) }}
       </n-text>
       <div 
         style="
@@ -40,7 +40,7 @@
         <ClockIcon />
       </n-icon>
       <n-text :depth="isActive ? 1 : 3">
-        Nächste Prüfung: 
+        {{ t('countdown.nextCheck') }}: 
         <n-text 
           :type="getTimeType()" 
           strong
@@ -68,6 +68,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { NSpace, NIcon, NText, NProgress } from 'naive-ui'
 import { Clock as ClockIcon } from '@vicons/tabler'
 
@@ -78,6 +79,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { t } = useI18n()
 
 const secondsLeft = ref(0)
 const timer = ref<number | null>(null)
