@@ -25,7 +25,7 @@ export interface SubscriptionConfig {
 class BackgroundWorkerService {
   private subscriptions = new Map<string, SubscriptionConfig>()
   private workerInterval: number | null = null
-  private readonly checkInterval = 15000 // 15 seconds for background checks
+  private checkInterval = 15000 // Default: 15 seconds for background checks
   private readonly storageKey = 'nbg-appointment-subscriptions'
 
   constructor() {
@@ -379,6 +379,27 @@ class BackgroundWorkerService {
     } catch (error) {
       console.error('Failed to load subscriptions:', error)
     }
+  }
+
+  setCheckInterval(intervalMs: number) {
+    this.checkInterval = intervalMs
+    // Restart the background worker with new interval
+    if (this.workerInterval) {
+      this.stopBackgroundWorker()
+      this.startBackgroundWorker()
+    }
+  }
+
+  startWorker() {
+    this.startBackgroundWorker()
+  }
+
+  stopWorker() {
+    this.stopBackgroundWorker()
+  }
+
+  isRunning(): boolean {
+    return this.workerInterval !== null
   }
 
   destroy() {

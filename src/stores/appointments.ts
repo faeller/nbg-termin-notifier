@@ -23,7 +23,9 @@ export const useAppointmentStore = defineStore('appointments', () => {
   const error = ref<string | null>(null)
   const notificationPermission = ref<NotificationPermission>(notificationService.getPermissionStatus())
   const pollingInterval = ref<number | null>(null)
-  const pollingFrequency = ref(15000) // 15 seconds
+  // Load polling frequency from localStorage with default fallback
+  const savedPollingFrequency = localStorage.getItem('pollingFrequency')
+  const pollingFrequency = ref(savedPollingFrequency ? parseInt(savedPollingFrequency) : 15000) // 15 seconds default
   
   // Load backgroundImage from localStorage with default fallback
   const savedBackgroundImage = localStorage.getItem('backgroundImage')
@@ -147,6 +149,8 @@ export const useAppointmentStore = defineStore('appointments', () => {
     pollingInterval.value = setInterval(() => {
       checkForNewAppointments()
     }, pollingFrequency.value)
+    // Also start background worker
+    backgroundWorkerService.startWorker()
   }
 
   function stopPolling() {
@@ -154,10 +158,16 @@ export const useAppointmentStore = defineStore('appointments', () => {
       clearInterval(pollingInterval.value)
       pollingInterval.value = null
     }
+    // Also stop background worker
+    backgroundWorkerService.stopWorker()
   }
 
   function setPollingFrequency(frequency: number) {
     pollingFrequency.value = frequency
+    // Save to localStorage
+    localStorage.setItem('pollingFrequency', frequency.toString())
+    // Also update background worker interval
+    backgroundWorkerService.setCheckInterval(frequency)
     if (pollingInterval.value) {
       stopPolling()
       startPolling()
@@ -230,6 +240,9 @@ export const useAppointmentStore = defineStore('appointments', () => {
 
   // Initialize store - load data for previously selected appointment types
   function initializeStore() {
+    // Synchronize background worker with current polling frequency
+    backgroundWorkerService.setCheckInterval(pollingFrequency.value)
+    
     selectedAppointmentTypes.value.forEach(appointmentTypeId => {
       fetchAppointmentData(appointmentTypeId)
     })
