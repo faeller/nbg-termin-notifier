@@ -35,24 +35,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { NCard, NSpace, NText, NButton, NDivider, NCollapseTransition } from 'naive-ui'
 import posthog from 'posthog-js'
 
 const showBanner = ref(false)
 const showDetails = ref(false)
 
-onMounted(() => {
-  // Check if user has already made a choice
+function checkConsent() {
   const analyticsConsent = localStorage.getItem('analytics-consent')
   if (!analyticsConsent) {
     showBanner.value = true
-  } else if (analyticsConsent === 'accepted') {
-    // Analytics already enabled via router
   } else {
-    // User declined, disable PostHog
-    posthog.opt_out_capturing()
+    showBanner.value = false
+    if (analyticsConsent === 'accepted') {
+      posthog.opt_in_capturing()
+    } else {
+      posthog.opt_out_capturing()
+    }
   }
+}
+
+function handleStorageChange(e: StorageEvent) {
+  if (e.key === 'analytics-consent') {
+    checkConsent()
+  }
+}
+
+onMounted(() => {
+  checkConsent()
+  window.addEventListener('storage', handleStorageChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', handleStorageChange)
 })
 
 function acceptAnalytics() {

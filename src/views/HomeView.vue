@@ -81,11 +81,11 @@ const sortedAppointmentTypes = computed(() => {
   return store.availableAppointmentTypes.slice().sort((a, b) => {
     const aSelected = store.selectedAppointmentTypes.includes(a.id)
     const bSelected = store.selectedAppointmentTypes.includes(b.id)
-    
+
     // If one is selected and the other isn't, prioritize the selected one
     if (aSelected && !bSelected) return -1
     if (!aSelected && bSelected) return 1
-    
+
     // If both have the same selection status, sort by ID (original order)
     return a.id - b.id
   })
@@ -95,7 +95,7 @@ const sortedAppointmentTypes = computed(() => {
 onMounted(() => {
   // Initialize store - load data for previously selected appointment types
   store.initializeStore()
-  
+
   // Only add default appointment type if this is the first time using the app
   if (store.selectedAppointmentTypes.length === 0 && !localStorage.getItem('selectedAppointmentTypes')) {
     // Add default appointment type (Wohnung anmelden) for first-time users
@@ -104,7 +104,7 @@ onMounted(() => {
 
   // Load existing subscriptions
   store.refreshSubscriptions()
-  
+
   // Refresh subscriptions when modal closes to update counters
   watch(showSubscriptionManager, (isOpen, wasOpen) => {
     // Only refresh when modal was open and is now closing
@@ -156,7 +156,8 @@ onUnmounted(() => {
         <n-alert v-if="!store.hasNotificationPermission" type="warning" style="margin-top: 16px">
           <n-space vertical size="small" class="notification-alert">
             <n-text>Bitte aktivieren Sie Benachrichtigungen in den Einstellungen, um Alerts zu erhalten.</n-text>
-            <n-button size="small" type="primary" @click="store.requestNotificationPermission()" class="notification-button">
+            <n-button size="small" type="primary" @click="store.requestNotificationPermission()"
+              class="notification-button">
               Benachrichtigungen aktivieren
             </n-button>
           </n-space>
@@ -171,48 +172,40 @@ onUnmounted(() => {
 
         <n-grid :cols="1" :x-gap="16" :y-gap="16" responsive="screen">
           <n-grid-item v-for="appointmentType in sortedAppointmentTypes" :key="appointmentType.id">
-            <n-card 
-              :class="{ 'selected-appointment': store.selectedAppointmentTypes.includes(appointmentType.id) }"
+            <n-card :class="{ 'selected-appointment': store.selectedAppointmentTypes.includes(appointmentType.id) }"
               hoverable>
               <template #header>
                 <div class="appointment-header">
                   <h3 class="appointment-title">{{ appointmentType.name }}</h3>
                   <div class="appointment-actions">
-                <n-space>
-                  <n-button size="small" :type="store.hasActiveFilters(appointmentType.id) ? 'success' : 'default'"
-                    ghost @click.stop="openFilterModal(appointmentType.id)">
-                    <template #icon>
-                      <n-icon size="14">
-                        <Bell />
-                      </n-icon>
-                    </template><span>+</span>
-                  </n-button>
-                  
-                  <!-- Edit subscriptions button (only show if subscriptions exist) -->
-                  <n-button 
-                    v-if="store.activeSubscriptions.length > 0"
-                    size="small" 
-                    :type="showSubscriptionManager ? 'primary' : 'default'"
-                    ghost 
-                    @click.stop="showSubscriptionManager = !showSubscriptionManager"
-                  >
-                    <template #icon>
-                      <n-icon size="14">
-                        <Settings />
-                      </n-icon>
-                    </template>
-                    <n-badge 
-                      :value="store.getSubscriptionsForAppointmentType(appointmentType.id).filter(s => s.filters.enabled).length"
-                      :show="store.getSubscriptionsForAppointmentType(appointmentType.id).filter(s => s.filters.enabled).length > 0" 
-                      type="success"
-                      :size="12"
-                      style="margin-left: 4px;"
-                    />
-                  </n-button>
-                  
-                  <n-switch :value="store.selectedAppointmentTypes.includes(appointmentType.id)"
-                    @update:value="() => toggleAppointmentType(appointmentType.id)" />
-                </n-space>
+                    <n-space>
+                      <n-button size="small" :type="store.hasActiveFilters(appointmentType.id) ? 'success' : 'default'"
+                        ghost @click.stop="openFilterModal(appointmentType.id)">
+                        <template #icon>
+                          <n-icon size="14">
+                            <Bell />
+                          </n-icon>
+                        </template><span>+</span>
+                      </n-button>
+
+                      <!-- Edit subscriptions button (only show if subscriptions exist) -->
+                      <n-button v-if="store.activeSubscriptions.length > 0" size="small"
+                        :type="showSubscriptionManager ? 'primary' : 'default'" ghost
+                        @click.stop="showSubscriptionManager = !showSubscriptionManager">
+                        <template #icon>
+                          <n-icon size="14">
+                            <Settings />
+                          </n-icon>
+                        </template>
+                        <n-badge
+                          :value="store.getSubscriptionsForAppointmentType(appointmentType.id).filter(s => s.filters.enabled).length"
+                          :show="store.getSubscriptionsForAppointmentType(appointmentType.id).filter(s => s.filters.enabled).length > 0"
+                          type="success" :size="12" style="margin-left: 4px;" />
+                      </n-button>
+
+                      <n-switch :value="store.selectedAppointmentTypes.includes(appointmentType.id)"
+                        @update:value="() => toggleAppointmentType(appointmentType.id)" />
+                    </n-space>
                   </div>
                 </div>
               </template>
@@ -294,17 +287,11 @@ onUnmounted(() => {
     <FilterModal v-model:show="store.showFilterModal" :appointment-type-id="store.filterModalAppointmentType"
       :existing-subscription-id="store.filterModalExistingSubscriptionId" @subscription-created="onSubscriptionCreated"
       @subscription-updated="onSubscriptionUpdated" @close="store.closeFilterModal" />
-    
+
     <!-- Subscription Manager Modal -->
-    <n-modal
-      v-model:show="showSubscriptionManager"
-      preset="card"
-      :style="{ maxWidth: '800px', width: '90vw' }"
-      title="🔔 Benachrichtigungs-Abonnements verwalten"
-      size="large"
-      :bordered="false"
-      :segmented="{ content: 'soft', footer: 'soft' }"
-    >
+    <n-modal v-model:show="showSubscriptionManager" preset="card" :style="{ maxWidth: '800px', width: '90vw' }"
+      title="🔔 Benachrichtigungs-Abonnements verwalten" size="large" :bordered="false"
+      :segmented="{ content: 'soft', footer: 'soft' }">
       <SubscriptionManager />
     </n-modal>
   </div>
@@ -324,7 +311,7 @@ onUnmounted(() => {
   .notification-alert {
     align-items: stretch;
   }
-  
+
   .notification-button {
     width: 100%;
     align-self: stretch;
@@ -348,7 +335,8 @@ onUnmounted(() => {
   word-break: break-word;
   hyphens: auto;
   flex: 1;
-  min-width: 0; /* Allow flex shrinking */
+  min-width: 0;
+  /* Allow flex shrinking */
 }
 
 .appointment-actions {
@@ -362,13 +350,13 @@ onUnmounted(() => {
     align-items: stretch;
     gap: 8px;
   }
-  
+
   .appointment-title {
     font-size: 16px;
     line-height: 1.3;
     margin-bottom: 4px;
   }
-  
+
   .appointment-actions {
     align-self: flex-end;
   }

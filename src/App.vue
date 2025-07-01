@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterView } from 'vue-router'
 import { 
   NConfigProvider, NLayout, NLayoutContent, NPageHeader, NSpace, NButton, NIcon, 
@@ -10,12 +10,14 @@ import {
 import { Settings } from '@vicons/tabler'
 import { useAppointmentStore } from './stores/appointments'
 import AnalyticsBanner from './components/AnalyticsBanner.vue'
+import posthog from 'posthog-js'
 const store = useAppointmentStore()
 
 const isDark = ref(false)
 const showSettings = ref(false)
 const backgroundImageUrl = ref('')
 const pollingMinutes = ref(0.5)
+const analyticsEnabled = ref(false)
 
 const theme = computed(() => isDark.value ? darkTheme : null)
 const themeOverrides: GlobalThemeOverrides = {
@@ -70,6 +72,24 @@ function clearBackgroundImage() {
   backgroundImageUrl.value = ''
 }
 
+function toggleAnalytics() {
+  if (analyticsEnabled.value) {
+    localStorage.setItem('analytics-consent', 'accepted')
+    posthog.opt_in_capturing()
+    posthog.capture('analytics_consent_given')
+  } else {
+    localStorage.setItem('analytics-consent', 'declined')
+    posthog.opt_out_capturing()
+  }
+}
+
+function handleStorageChange(e: StorageEvent) {
+  if (e.key === 'analytics-consent') {
+    const analyticsConsent = localStorage.getItem('analytics-consent')
+    analyticsEnabled.value = analyticsConsent === 'accepted'
+  }
+}
+
 onMounted(() => {
   // Load theme preference
   const savedTheme = localStorage.getItem('theme')
@@ -84,6 +104,17 @@ onMounted(() => {
     store.setBackgroundImage(savedBackgroundImage)
     backgroundImageUrl.value = savedBackgroundImage
   }
+  
+  // Load analytics consent preference
+  const analyticsConsent = localStorage.getItem('analytics-consent')
+  analyticsEnabled.value = analyticsConsent === 'accepted'
+  
+  // Listen for storage changes to sync banner and settings
+  window.addEventListener('storage', handleStorageChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', handleStorageChange)
 })
 </script>
 
@@ -175,6 +206,22 @@ onMounted(() => {
                     <n-button @click="setBackgroundImage" type="primary">Setzen</n-button>
                     <n-button @click="clearBackgroundImage">Entfernen</n-button>
                   </n-space>
+                </n-space>
+              </n-card>
+
+              <n-card title="Analytics" size="small">
+                <n-space vertical>
+                  <n-space align="center">
+                    <n-switch 
+                      v-model:value="analyticsEnabled" 
+                      @update:value="toggleAnalytics"
+                    />
+                    <n-text>Datenerfassung erlauben</n-text>
+                  </n-space>
+                  <n-text depth="3" style="font-size: 12px;">
+                    Anonyme Nutzungsstatistiken helfen bei der Verbesserung der App. 
+                    Es werden keine persönlichen Daten gespeichert.
+                  </n-text>
                 </n-space>
               </n-card>
             </n-space>
