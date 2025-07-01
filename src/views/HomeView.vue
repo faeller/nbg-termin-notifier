@@ -34,7 +34,7 @@ function getTranslatedAppointmentName(name: string): string {
   return key ? t(key) : name
 }
 
-// Track which appointment types are expanded (default to collapsed for enabled types)
+// Track which appointment types are expanded (default to expanded for enabled types)
 const expandedAppointmentTypes = ref<number[]>([])
 
 // Computed property to determine if an appointment type should be expanded
@@ -42,10 +42,10 @@ const isAppointmentTypeExpanded = computed(() => (appointmentTypeId: number) => 
   return expandedAppointmentTypes.value.includes(appointmentTypeId)
 })
 
-// Function to ensure appointment type starts collapsed when enabled
-function ensureCollapsed(appointmentTypeId: number) {
-  if (expandedAppointmentTypes.value.includes(appointmentTypeId)) {
-    expandedAppointmentTypes.value = expandedAppointmentTypes.value.filter(id => id !== appointmentTypeId)
+// Function to ensure appointment type starts expanded when enabled
+function ensureExpanded(appointmentTypeId: number) {
+  if (!expandedAppointmentTypes.value.includes(appointmentTypeId)) {
+    expandedAppointmentTypes.value.push(appointmentTypeId)
   }
 }
 
@@ -55,13 +55,15 @@ function toggleAppointmentType(appointmentTypeId: number) {
 
   if (store.selectedAppointmentTypes.includes(appointmentTypeId)) {
     message.success('Termintyp hinzugefügt!')
-    // Auto-collapse the newly enabled appointment type
-    ensureCollapsed(appointmentTypeId)
+    // Auto-expand the newly enabled appointment type
+    ensureExpanded(appointmentTypeId)
     if (!isPolling.value && store.hasNotificationPermission) {
       startPolling()
     }
   } else {
     message.info('Termintyp entfernt!')
+    // Remove from expanded list when disabled
+    expandedAppointmentTypes.value = expandedAppointmentTypes.value.filter(id => id !== appointmentTypeId)
     if (store.selectedAppointmentTypes.length === 0) {
       stopPolling()
     }
@@ -135,9 +137,9 @@ onMounted(() => {
     store.toggleAppointmentType(1)
   }
 
-  // Ensure all enabled appointment types start collapsed
+  // Ensure all enabled appointment types start expanded
   store.selectedAppointmentTypes.forEach(appointmentTypeId => {
-    ensureCollapsed(appointmentTypeId)
+    ensureExpanded(appointmentTypeId)
   })
 
   // Load existing subscriptions
