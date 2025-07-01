@@ -238,7 +238,8 @@ onMounted(() => {
   background-color: rgba(255, 255, 255, 0.8) !important;
   backdrop-filter: blur(8px);
   border-radius: 12px 12px 0 0;
-  margin: 0 16px 0px 16px;
+  margin: 0 auto 0px auto;
+  max-width: 900px;
 }
 
 .app-container.has-background.dark-theme .custom-header {
@@ -249,7 +250,8 @@ onMounted(() => {
   background-color: rgba(255, 255, 255, 0.4) !important;
   backdrop-filter: blur(8px);
   border-radius: 0 0 12px 12px;
-  margin: 0 16px 16px 16px;
+  margin: 0 auto 16px auto;
+  max-width: 900px;
   padding: 32px;
 }
 

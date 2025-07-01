@@ -76,6 +76,21 @@ function onSubscriptionUpdated() {
 
 const showSubscriptionManager = ref(false)
 
+// Sort appointment types: enabled ones first, then disabled ones
+const sortedAppointmentTypes = computed(() => {
+  return store.availableAppointmentTypes.slice().sort((a, b) => {
+    const aSelected = store.selectedAppointmentTypes.includes(a.id)
+    const bSelected = store.selectedAppointmentTypes.includes(b.id)
+    
+    // If one is selected and the other isn't, prioritize the selected one
+    if (aSelected && !bSelected) return -1
+    if (!aSelected && bSelected) return 1
+    
+    // If both have the same selection status, sort by ID (original order)
+    return a.id - b.id
+  })
+})
+
 
 onMounted(() => {
   // Initialize store - load data for previously selected appointment types
@@ -107,10 +122,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div>
+  <div class="main-container">
     <!-- Header Section -->
     <n-space vertical size="medium">
-      <n-card title="Überwachung" size="medium">
+      <n-card title="Automatische Aktualisierung" size="medium">
         <n-space align="center" justify="space-between">
           <n-space align="center">
             <n-switch v-model:value="isPolling" @update:value="isPolling ? startPolling() : stopPolling()"
@@ -139,7 +154,12 @@ onUnmounted(() => {
         </n-space>
 
         <n-alert v-if="!store.hasNotificationPermission" type="warning" style="margin-top: 16px">
-          Bitte aktivieren Sie Benachrichtigungen in den Einstellungen, um Alerts zu erhalten.
+          <n-space align="center" justify="space-between">
+            <n-text>Bitte aktivieren Sie Benachrichtigungen in den Einstellungen, um Alerts zu erhalten.</n-text>
+            <n-button size="small" type="primary" @click="store.requestNotificationPermission()">
+              Benachrichtigungen aktivieren
+            </n-button>
+          </n-space>
         </n-alert>
       </n-card>
 
@@ -150,7 +170,7 @@ onUnmounted(() => {
         </n-h3>
 
         <n-grid :cols="1" :x-gap="16" :y-gap="16" responsive="screen">
-          <n-grid-item v-for="appointmentType in store.availableAppointmentTypes" :key="appointmentType.id">
+          <n-grid-item v-for="appointmentType in sortedAppointmentTypes" :key="appointmentType.id">
             <n-card :title="appointmentType.name"
               :class="{ 'selected-appointment': store.selectedAppointmentTypes.includes(appointmentType.id) }"
               hoverable>
@@ -286,6 +306,10 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.main-container {
+  /* Max-width handled by App.vue */
+}
+
 .selected-appointment {
   border: 2px solid var(--primary-color);
 }
