@@ -17,9 +17,10 @@ export const useAppointmentStore = defineStore('appointments', () => {
   const pollingInterval = ref<number | null>(null)
   const pollingFrequency = ref(15000) // 15 seconds
   
-  // Load backgroundImage from localStorage
+  // Load backgroundImage from localStorage with default fallback
   const savedBackgroundImage = localStorage.getItem('backgroundImage')
-  const backgroundImage = ref<string | null>(savedBackgroundImage)
+  const defaultBackgroundImage = 'https://images.unsplash.com/photo-1590651639672-5f0178aa4812?q=80&w=1374&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+  const backgroundImage = ref<string | null>(savedBackgroundImage || defaultBackgroundImage)
   
   const activeSubscriptions = ref<SubscriptionConfig[]>([])
   const showFilterModal = ref(false)
