@@ -9,6 +9,7 @@ import {
 } from 'naive-ui'
 import { Settings } from '@vicons/tabler'
 import { useAppointmentStore } from './stores/appointments'
+import AnalyticsBanner from './components/AnalyticsBanner.vue'
 const store = useAppointmentStore()
 
 const isDark = ref(false)
@@ -179,6 +180,9 @@ onMounted(() => {
             </n-space>
           </n-modal>
         </div>
+        
+        <!-- Analytics Consent Banner (outside app container for proper positioning) -->
+        <AnalyticsBanner />
       </n-notification-provider>
     </n-message-provider>
   </n-config-provider>

@@ -3,6 +3,14 @@ import { ref, computed } from 'vue'
 import { appointmentService, appointmentTypes, type AppointmentData, type AppointmentLocation } from '../services/appointmentService'
 import { notificationService, NotificationPermission } from '../services/notificationService'
 import { backgroundWorkerService, type SubscriptionConfig } from '../services/backgroundWorkerService'
+import posthog from 'posthog-js'
+
+// Helper function to check if analytics tracking is allowed
+function canTrack(): boolean {
+  const consent = localStorage.getItem('analytics-consent')
+  // Allow tracking if user accepted OR if they haven't made a choice yet
+  return consent === 'accepted' || consent === null
+}
 
 export const useAppointmentStore = defineStore('appointments', () => {
   // Load selectedAppointmentTypes from localStorage
@@ -36,7 +44,17 @@ export const useAppointmentStore = defineStore('appointments', () => {
   const isNotificationSupported = computed(() => notificationService.isSupported())
 
   async function requestNotificationPermission() {
+    const previousPermission = notificationPermission.value
     notificationPermission.value = await notificationService.requestPermission()
+    
+    // Track notification permission request
+    if (canTrack()) {
+      posthog.capture('notification_permission_requested', {
+        previous_permission: previousPermission,
+        new_permission: notificationPermission.value,
+        granted: notificationPermission.value === NotificationPermission.GRANTED
+      })
+    }
   }
 
   async function fetchAppointmentData(appointmentTypeId: number) {
@@ -91,14 +109,32 @@ export const useAppointmentStore = defineStore('appointments', () => {
   }
 
   function toggleAppointmentType(appointmentTypeId: number) {
+    const appointmentType = appointmentTypes.find(type => type.id === appointmentTypeId)
     const index = selectedAppointmentTypes.value.indexOf(appointmentTypeId)
+    
     if (index === -1) {
       selectedAppointmentTypes.value.push(appointmentTypeId)
       fetchAppointmentData(appointmentTypeId)
+      
+      // Track appointment type enabled
+      if (canTrack()) {
+        posthog.capture('appointment_type_enabled', {
+          appointment_type: appointmentType?.name,
+          appointment_type_id: appointmentTypeId
+        })
+      }
     } else {
       selectedAppointmentTypes.value.splice(index, 1)
       appointmentData.value.delete(appointmentTypeId)
       lastKnownTimestamps.value.delete(appointmentTypeId)
+      
+      // Track appointment type disabled
+      if (canTrack()) {
+        posthog.capture('appointment_type_disabled', {
+          appointment_type: appointmentType?.name,
+          appointment_type_id: appointmentTypeId
+        })
+      }
     }
     
     // Save to localStorage
