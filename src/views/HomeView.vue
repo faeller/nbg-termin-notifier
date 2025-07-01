@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   NGrid, NGridItem, NCard, NSpace, NButton, NIcon, NText, NTime, NAlert,
   NSpin, NEmpty, NSwitch, NCollapse, NCollapseItem, NH3, NBadge, NDivider, NModal
@@ -13,9 +14,25 @@ import CountdownTimer from '../components/CountdownTimer.vue'
 
 const store = useAppointmentStore()
 const message = useMessage()
+const { t } = useI18n()
 
 // Use store's polling state instead of local ref
 const isPolling = computed(() => store.isPollingActive)
+
+// Map appointment type names to translation keys
+const appointmentTypeNames: Record<string, string> = {
+  'Wohnung anmelden oder ummelden': 'appointmentTypes.registration',
+  'Personalausweis beantragen': 'appointmentTypes.personalId',
+  'Vorläufigen Personalausweis beantragen': 'appointmentTypes.tempPersonalId',
+  'Reisepass beantragen': 'appointmentTypes.passport',
+  'Neues Fahrzeug anmelden': 'appointmentTypes.vehicleRegistration',
+  'Geschlechtseintrag ändern': 'appointmentTypes.genderChange'
+}
+
+function getTranslatedAppointmentName(name: string): string {
+  const key = appointmentTypeNames[name]
+  return key ? t(key) : name
+}
 
 
 function toggleAppointmentType(appointmentTypeId: number) {
@@ -36,22 +53,22 @@ function toggleAppointmentType(appointmentTypeId: number) {
 
 function startPolling() {
   if (store.selectedAppointmentTypes.length === 0) {
-    message.warning('Bitte wählen Sie mindestens einen Termintyp aus.')
+    message.warning(t('monitoring.selectAppointmentType'))
     return
   }
 
   if (!store.hasNotificationPermission) {
-    message.warning('Bitte aktivieren Sie Benachrichtigungen in den Einstellungen.')
+    message.warning(t('monitoring.enableNotifications'))
     return
   }
 
   store.startPolling()
-  message.success('Hintergrund-Überwachung gestartet!')
+  message.success(t('monitoring.started'))
 }
 
 function stopPolling() {
   store.stopPolling()
-  message.info('Hintergrund-Überwachung gestoppt!')
+  message.info(t('monitoring.stoppedMsg'))
 }
 
 function openReservationLink(url: string) {
@@ -124,7 +141,7 @@ onUnmounted(() => {
   <div class="main-container">
     <!-- Header Section -->
     <n-space vertical size="medium">
-      <n-card title="Automatische Aktualisierung" size="medium">
+      <n-card :title="t('monitoring.title')" size="medium">
         <n-space align="center" justify="space-between">
           <n-space align="center">
             <n-switch :value="isPolling" @update:value="(value) => value ? startPolling() : stopPolling()"
@@ -140,24 +157,24 @@ onUnmounted(() => {
                 </n-icon>
               </template>
             </n-switch>
-            <n-text>{{ isPolling ? 'Hintergrund-Überwachung aktiv' : 'Hintergrund-Überwachung gestoppt' }}</n-text>
+            <n-text>{{ isPolling ? t('monitoring.active') : t('monitoring.stopped') }}</n-text>
           </n-space>
 
           <n-space align="center" size="small">
             <n-icon size="14">
               <Clock />
             </n-icon>
-            <n-text depth="2">Alle {{ store.pollingFrequency / 1000 }} Sekunden</n-text>
+            <n-text depth="2">{{ t('monitoring.frequency', { seconds: store.pollingFrequency / 1000 }) }}</n-text>
             <CountdownTimer :interval-ms="store.pollingFrequency" :is-active="isPolling" compact />
           </n-space>
         </n-space>
 
         <n-alert v-if="!store.hasNotificationPermission" type="warning" style="margin-top: 16px">
           <n-space vertical size="small" class="notification-alert">
-            <n-text>Bitte aktivieren Sie Benachrichtigungen in den Einstellungen, um Alerts zu erhalten.</n-text>
+            <n-text>{{ t('monitoring.enableNotifications') }}</n-text>
             <n-button size="small" type="primary" @click="store.requestNotificationPermission()"
               class="notification-button">
-              Benachrichtigungen aktivieren
+              {{ t('monitoring.enableNotificationsBtn') }}
             </n-button>
           </n-space>
         </n-alert>
@@ -166,7 +183,7 @@ onUnmounted(() => {
       <!-- Appointment Types Grid -->
       <div>
         <n-h3 prefix="bar" style="margin: 24px 0 20px 0">
-          Verfügbare Termintypen
+          {{ t('appointments.title') }}
         </n-h3>
 
         <n-grid :cols="1" :x-gap="16" :y-gap="16" responsive="screen">
@@ -175,7 +192,7 @@ onUnmounted(() => {
               hoverable>
               <template #header>
                 <div class="appointment-header">
-                  <h3 class="appointment-title">{{ appointmentType.name }}</h3>
+                  <h3 class="appointment-title">{{ getTranslatedAppointmentName(appointmentType.name) }}</h3>
                   <div class="appointment-actions">
                     <n-space>
                       <n-button size="small" :type="store.hasActiveFilters(appointmentType.id) ? 'success' : 'default'"
@@ -213,7 +230,7 @@ onUnmounted(() => {
                 <!-- Loading State -->
                 <div v-if="store.isLoading && store.selectedAppointmentTypes.includes(appointmentType.id)">
                   <n-spin size="small" />
-                  <n-text style="margin-left: 8px">Lade Termine...</n-text>
+                  <n-text style="margin-left: 8px">{{ t('appointments.loading') }}</n-text>
                 </div>
 
                 <!-- Error State -->
@@ -225,7 +242,7 @@ onUnmounted(() => {
                 <!-- Appointments List -->
                 <div v-else-if="store.selectedAppointmentTypes.includes(appointmentType.id)">
                   <n-collapse>
-                    <n-collapse-item title="Verfügbare Termine" :name="appointmentType.id" style="padding: 8px 0;">
+                    <n-collapse-item :title="t('appointments.title')" :name="appointmentType.id" style="padding: 8px 0;">
                       <template #header-extra>
                         <n-badge :value="store.getAvailableAppointments(appointmentType.id).length"
                           :show="store.getAvailableAppointments(appointmentType.id).length > 0" type="success" />
@@ -259,20 +276,20 @@ onUnmounted(() => {
                                   <ExternalLink />
                                 </n-icon>
                               </template>
-                              Buchen
+                              {{ t('appointments.makeReservation') }}
                             </n-button>
                           </n-space>
                         </n-card>
                       </n-space>
 
-                      <n-empty v-else description="Keine Termine verfügbar" size="small" />
+                      <n-empty v-else :description="t('appointments.noData')" size="small" />
                     </n-collapse-item>
                   </n-collapse>
                 </div>
 
                 <!-- Instructions when not selected -->
                 <n-text depth="3" v-else>
-                  Aktivieren Sie diesen Termintyp, um verfügbare Termine zu sehen und Benachrichtigungen zu erhalten.
+                  {{ t('appointments.enableInstructions') }}
                 </n-text>
               </n-space>
             </n-card>
@@ -289,7 +306,7 @@ onUnmounted(() => {
 
     <!-- Subscription Manager Modal -->
     <n-modal v-model:show="showSubscriptionManager" preset="card" :style="{ maxWidth: '800px', width: '90vw' }"
-      title="🔔 Benachrichtigungs-Abonnements verwalten" size="large" :bordered="false"
+      :title="t('subscriptions.title')" size="large" :bordered="false"
       :segmented="{ content: 'soft', footer: 'soft' }">
       <SubscriptionManager />
     </n-modal>

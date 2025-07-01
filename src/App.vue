@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 import { 
   NConfigProvider, NLayout, NLayoutContent, NPageHeader, NSpace, NButton, NIcon, 
   NSwitch, NModal, NCard, NAlert, NText, NInputNumber, NInput, NMessageProvider,
-  NNotificationProvider, NGlobalStyle,
+  NNotificationProvider, NGlobalStyle, NSelect,
   darkTheme, type GlobalThemeOverrides 
 } from 'naive-ui'
 import { Settings } from '@vicons/tabler'
 import { useAppointmentStore } from './stores/appointments'
 import AnalyticsBanner from './components/AnalyticsBanner.vue'
 import posthog from 'posthog-js'
+import { setLanguage, availableLocales } from './i18n'
+
 const store = useAppointmentStore()
+const { t, locale } = useI18n()
 
 const isDark = ref(false)
 const showSettings = ref(false)
@@ -40,9 +44,9 @@ const backgroundStyle = computed(() => {
 })
 
 const notificationStatusText = computed(() => {
-  if (!store.isNotificationSupported) return 'Nicht unterstützt'
-  if (store.hasNotificationPermission) return 'Aktiviert'
-  return 'Deaktiviert'
+  if (!store.isNotificationSupported) return t('settings.notifications.notSupported')
+  if (store.hasNotificationPermission) return t('settings.notifications.enabled')
+  return t('settings.notifications.disabled')
 })
 
 function toggleTheme() {
@@ -90,6 +94,10 @@ function handleStorageChange(e: StorageEvent) {
   }
 }
 
+function changeLanguage(newLocale: string) {
+  setLanguage(newLocale)
+}
+
 onMounted(() => {
   // Load theme preference
   const savedTheme = localStorage.getItem('theme')
@@ -132,7 +140,7 @@ onUnmounted(() => {
           :style="backgroundStyle"
         >
           <div class="custom-header">
-            <h1 class="app-title">Nürnberg Termin Notifier</h1>
+            <h1 class="app-title">{{ t('app.title') }}</h1>
             <n-space align="center" :size="12">
               <n-switch 
                 v-model:value="isDark" 
@@ -160,30 +168,30 @@ onUnmounted(() => {
           </div>
 
           <!-- Settings Modal -->
-          <n-modal v-model:show="showSettings" preset="card" title="Einstellungen" style="width: 600px">
+          <n-modal v-model:show="showSettings" preset="card" :title="t('settings.title')" style="width: 600px">
             <n-space vertical>
-              <n-card title="Benachrichtigungen" size="small">
+              <n-card :title="t('settings.notifications.title')" size="small">
                 <n-space vertical>
                   <n-alert v-if="!store.isNotificationSupported" type="warning">
-                    Ihr Browser unterstützt keine Benachrichtigungen.
+                    {{ t('settings.notifications.notSupported') }}
                   </n-alert>
                   <div v-else>
-                    <n-text>Status: {{ notificationStatusText }}</n-text>
+                    <n-text>{{ t('settings.notifications.status') }}: {{ notificationStatusText }}</n-text>
                     <n-button 
                       v-if="!store.hasNotificationPermission" 
                       @click="requestNotifications"
                       type="primary"
                       style="margin-left: 12px"
                     >
-                      Benachrichtigungen aktivieren
+                      {{ t('settings.notifications.enable') }}
                     </n-button>
                   </div>
                 </n-space>
               </n-card>
 
-              <n-card title="Polling-Frequenz" size="small">
+              <n-card :title="t('settings.polling.title')" size="small">
                 <n-space align="center">
-                  <n-text>Alle</n-text>
+                  <n-text>{{ t('settings.polling.label') }}</n-text>
                   <n-input-number 
                     v-model:value="pollingSeconds" 
                     :min="5" 
@@ -191,38 +199,46 @@ onUnmounted(() => {
                     @update:value="updatePollingFrequency"
                     style="width: 120px"
                   />
-                  <n-text>Sekunden prüfen</n-text>
+                  <n-text>{{ t('settings.polling.unit') }}</n-text>
                 </n-space>
               </n-card>
 
-              <n-card title="Hintergrundbild" size="small">
+              <n-card :title="t('settings.background.title')" size="small">
                 <n-space vertical>
                   <n-input 
                     v-model:value="backgroundImageUrl" 
-                    placeholder="URL zum Hintergrundbild eingeben"
+                    :placeholder="t('settings.background.placeholder')"
                     @keyup.enter="setBackgroundImage"
                   />
                   <n-space>
-                    <n-button @click="setBackgroundImage" type="primary">Setzen</n-button>
-                    <n-button @click="clearBackgroundImage">Entfernen</n-button>
+                    <n-button @click="setBackgroundImage" type="primary">{{ t('settings.background.set') }}</n-button>
+                    <n-button @click="clearBackgroundImage">{{ t('settings.background.remove') }}</n-button>
                   </n-space>
                 </n-space>
               </n-card>
 
-              <n-card title="Analytics" size="small">
+              <n-card :title="t('settings.analytics.title')" size="small">
                 <n-space vertical>
                   <n-space align="center">
                     <n-switch 
                       v-model:value="analyticsEnabled" 
                       @update:value="toggleAnalytics"
                     />
-                    <n-text>Datenerfassung erlauben</n-text>
+                    <n-text>{{ t('settings.analytics.enable') }}</n-text>
                   </n-space>
                   <n-text depth="3" style="font-size: 12px;">
-                    Anonyme Nutzungsstatistiken helfen bei der Verbesserung der App. 
-                    Es werden keine persönlichen Daten gespeichert.
+                    {{ t('settings.analytics.description') }}
                   </n-text>
                 </n-space>
+              </n-card>
+
+              <n-card :title="t('settings.language.title')" size="small">
+                <n-select
+                  :value="locale"
+                  @update:value="changeLanguage"
+                  :options="availableLocales.map(loc => ({ label: loc.name, value: loc.code }))"
+                  style="width: 200px"
+                />
               </n-card>
             </n-space>
           </n-modal>

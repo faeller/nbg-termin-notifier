@@ -6,17 +6,17 @@
   >
     <n-space align="center" justify="space-between">
       <n-text>
-        Diese App verwendet anonyme Nutzungsstatistiken zur Verbesserung. 
+        {{ t('analytics.message') }}
         <n-button text type="primary" @click="showDetails = !showDetails">
-          {{ showDetails ? 'Weniger' : 'Mehr erfahren' }}
+          {{ showDetails ? t('analytics.learnLess') : t('analytics.learnMore') }}
         </n-button>
       </n-text>
       <n-space>
         <n-button size="small" @click="declineAnalytics">
-          Ablehnen
+          {{ t('analytics.decline') }}
         </n-button>
         <n-button size="small" type="primary" @click="acceptAnalytics">
-          Akzeptieren
+          {{ t('analytics.accept') }}
         </n-button>
       </n-space>
     </n-space>
@@ -24,10 +24,9 @@
     <n-collapse-transition :show="showDetails">
       <n-divider style="margin: 12px 0;" />
       <n-text depth="3" style="font-size: 12px;">
-        Wir verwenden PostHog für anonyme Nutzungsstatistiken (Seitenaufrufe, Klicks). 
-        Keine persönlichen Daten werden gespeichert. 
+        {{ t('analytics.details') }}
         <n-button text type="primary" tag="a" href="https://posthog.com/privacy" target="_blank" style="font-size: 12px;">
-          Datenschutz-Details
+          {{ t('analytics.privacyLink') }}
         </n-button>
       </n-text>
     </n-collapse-transition>
@@ -36,11 +35,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { NCard, NSpace, NText, NButton, NDivider, NCollapseTransition } from 'naive-ui'
 import posthog from 'posthog-js'
 
 const showBanner = ref(false)
 const showDetails = ref(false)
+const { t } = useI18n()
 
 function checkConsent() {
   const analyticsConsent = localStorage.getItem('analytics-consent')
