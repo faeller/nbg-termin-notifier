@@ -2,19 +2,23 @@ import { createI18n } from 'vue-i18n'
 import de from './de'
 import en from './en'
 import ru from './ru'
+import fr from './fr'
+import nl from './nl'
 
 // Language translations
 const messages = {
   de,
   en,
-  ru
+  ru,
+  fr,
+  nl
 }
 
 // Create i18n instance
 export const i18n = createI18n({
   legacy: false,
-  locale: localStorage.getItem('language') || 'de', // Default to German
-  fallbackLocale: 'de',
+  locale: localStorage.getItem('language') || 'en', // Default to English
+  fallbackLocale: 'en',
   messages
 })
 
@@ -34,7 +38,9 @@ export function updatePageTitle() {
 
 // Export available locales
 export const availableLocales = [
-  { code: 'de', name: 'Deutsch' },
   { code: 'en', name: 'English' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'fr', name: 'Français' },
+  { code: 'nl', name: 'Nederlands' },
   { code: 'ru', name: 'Русский' }
 ]

@@ -89,7 +89,9 @@ export default {
       title: 'Language',
       german: 'Deutsch',
       english: 'English',
-      russian: 'Русский'
+      russian: 'Русский',
+      french: 'Français',
+      dutch: 'Nederlands'
     }
   },
 

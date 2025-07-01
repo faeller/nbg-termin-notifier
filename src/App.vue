@@ -150,6 +150,14 @@ onUnmounted(() => {
                 <template #checked>🌙</template>
                 <template #unchecked>☀️</template>
               </n-switch>
+              <n-select
+                :value="locale"
+                @update:value="changeLanguage"
+                :options="availableLocales.map(loc => ({ label: loc.name, value: loc.code }))"
+                size="large"
+                style="width: 120px"
+                :placeholder="t('settings.language.title')"
+              />
               <n-button 
                 @click="showSettings = true" 
                 quaternary 
