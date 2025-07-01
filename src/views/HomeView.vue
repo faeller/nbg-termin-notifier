@@ -154,9 +154,9 @@ onUnmounted(() => {
         </n-space>
 
         <n-alert v-if="!store.hasNotificationPermission" type="warning" style="margin-top: 16px">
-          <n-space align="center" justify="space-between">
+          <n-space vertical size="small" class="notification-alert">
             <n-text>Bitte aktivieren Sie Benachrichtigungen in den Einstellungen, um Alerts zu erhalten.</n-text>
-            <n-button size="small" type="primary" @click="store.requestNotificationPermission()">
+            <n-button size="small" type="primary" @click="store.requestNotificationPermission()" class="notification-button">
               Benachrichtigungen aktivieren
             </n-button>
           </n-space>
@@ -171,10 +171,13 @@ onUnmounted(() => {
 
         <n-grid :cols="1" :x-gap="16" :y-gap="16" responsive="screen">
           <n-grid-item v-for="appointmentType in sortedAppointmentTypes" :key="appointmentType.id">
-            <n-card :title="appointmentType.name"
+            <n-card 
               :class="{ 'selected-appointment': store.selectedAppointmentTypes.includes(appointmentType.id) }"
               hoverable>
-              <template #header-extra>
+              <template #header>
+                <div class="appointment-header">
+                  <h3 class="appointment-title">{{ appointmentType.name }}</h3>
+                  <div class="appointment-actions">
                 <n-space>
                   <n-button size="small" :type="store.hasActiveFilters(appointmentType.id) ? 'success' : 'default'"
                     ghost @click.stop="openFilterModal(appointmentType.id)">
@@ -210,6 +213,8 @@ onUnmounted(() => {
                   <n-switch :value="store.selectedAppointmentTypes.includes(appointmentType.id)"
                     @update:value="() => toggleAppointmentType(appointmentType.id)" />
                 </n-space>
+                  </div>
+                </div>
               </template>
 
               <n-space vertical>
@@ -312,6 +317,75 @@ onUnmounted(() => {
 
 .selected-appointment {
   border: 2px solid var(--primary-color);
+}
+
+/* Mobile responsive notification alert */
+@media (max-width: 600px) {
+  .notification-alert {
+    align-items: stretch;
+  }
+  
+  .notification-button {
+    width: 100%;
+    align-self: stretch;
+  }
+}
+
+/* Responsive appointment card header */
+.appointment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.appointment-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+  hyphens: auto;
+  flex: 1;
+  min-width: 0; /* Allow flex shrinking */
+}
+
+.appointment-actions {
+  flex-shrink: 0;
+}
+
+/* Stack title above buttons on small screens */
+@media (max-width: 480px) {
+  .appointment-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .appointment-title {
+    font-size: 16px;
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+  
+  .appointment-actions {
+    align-self: flex-end;
+  }
+}
+
+/* Fix notification text wrapping */
+.notification-alert :deep(.n-text) {
+  word-break: break-word;
+  hyphens: auto;
+  line-height: 1.4;
+}
+
+@media (max-width: 480px) {
+  .notification-alert :deep(.n-text) {
+    font-size: 14px;
+    line-height: 1.3;
+  }
 }
 
 :deep(.n-collapse-item) {
