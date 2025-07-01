@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { appointmentService, appointmentTypes, type AppointmentData, type AppointmentLocation } from '../services/appointmentService'
 import { notificationService, NotificationPermission } from '../services/notificationService'
+import { backgroundWorkerService, type SubscriptionConfig } from '../services/backgroundWorkerService'
 
 export const useAppointmentStore = defineStore('appointments', () => {
   const selectedAppointmentTypes = ref<number[]>([])
@@ -11,8 +12,12 @@ export const useAppointmentStore = defineStore('appointments', () => {
   const error = ref<string | null>(null)
   const notificationPermission = ref<NotificationPermission>(notificationService.getPermissionStatus())
   const pollingInterval = ref<number | null>(null)
-  const pollingFrequency = ref(30000) // 30 seconds
+  const pollingFrequency = ref(15000) // 15 seconds
   const backgroundImage = ref<string | null>(null)
+  const activeSubscriptions = ref<SubscriptionConfig[]>([])
+  const showFilterModal = ref(false)
+  const filterModalAppointmentType = ref<number>(0)
+  const filterModalExistingSubscriptionId = ref<string>('')
 
   const availableAppointmentTypes = computed(() => appointmentTypes)
   
@@ -152,6 +157,30 @@ export const useAppointmentStore = defineStore('appointments', () => {
     return availableAppointments.sort((a, b) => (a.timestamp as number) - (b.timestamp as number))
   }
 
+  function refreshSubscriptions() {
+    activeSubscriptions.value = backgroundWorkerService.getSubscriptions()
+  }
+
+  function openFilterModal(appointmentTypeId: number, existingSubscriptionId?: string) {
+    filterModalAppointmentType.value = appointmentTypeId
+    filterModalExistingSubscriptionId.value = existingSubscriptionId || ''
+    showFilterModal.value = true
+  }
+
+  function closeFilterModal() {
+    showFilterModal.value = false
+    filterModalAppointmentType.value = 0
+    filterModalExistingSubscriptionId.value = ''
+  }
+
+  function getSubscriptionsForAppointmentType(appointmentTypeId: number): SubscriptionConfig[] {
+    return activeSubscriptions.value.filter(sub => sub.appointmentTypeId === appointmentTypeId)
+  }
+
+  function hasActiveFilters(appointmentTypeId: number): boolean {
+    return getSubscriptionsForAppointmentType(appointmentTypeId).some(sub => sub.filters.enabled)
+  }
+
   return {
     selectedAppointmentTypes,
     appointmentData,
@@ -160,6 +189,10 @@ export const useAppointmentStore = defineStore('appointments', () => {
     notificationPermission,
     pollingFrequency,
     backgroundImage,
+    activeSubscriptions,
+    showFilterModal,
+    filterModalAppointmentType,
+    filterModalExistingSubscriptionId,
     availableAppointmentTypes,
     hasNotificationPermission,
     isNotificationSupported,
@@ -172,6 +205,11 @@ export const useAppointmentStore = defineStore('appointments', () => {
     setPollingFrequency,
     setBackgroundImage,
     getAppointmentData,
-    getAvailableAppointments
+    getAvailableAppointments,
+    refreshSubscriptions,
+    openFilterModal,
+    closeFilterModal,
+    getSubscriptionsForAppointmentType,
+    hasActiveFilters
   }
 })

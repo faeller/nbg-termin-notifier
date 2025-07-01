@@ -89,16 +89,31 @@ class AppointmentService {
   }
 
   async checkForNewAppointments(appointmentType: AppointmentType, lastKnownTimestamp: number = 0): Promise<AppointmentLocation[]> {
+    console.log(`[AppointmentService] Fetching appointments for type: ${appointmentType.name}`)
+    console.log(`[AppointmentService] Filtering for appointments newer than: ${lastKnownTimestamp} (${new Date(lastKnownTimestamp).toLocaleString()})`)
+    
     const appointmentData = await this.fetchAppointmentDates(appointmentType)
+    const allAppointments: AppointmentLocation[] = []
     const newAppointments: AppointmentLocation[] = []
 
     appointmentData.forEach(data => {
       data.locations.forEach(location => {
+        allAppointments.push(location)
         if (location.timestamp && location.timestamp > lastKnownTimestamp) {
           newAppointments.push(location)
         }
       })
     })
+
+    console.log(`[AppointmentService] Total appointments found: ${allAppointments.length}`)
+    console.log(`[AppointmentService] All appointments:`)
+    allAppointments.forEach((apt, index) => {
+      const isNew = apt.timestamp && apt.timestamp > lastKnownTimestamp
+      const dateStr = apt.timestamp ? new Date(apt.timestamp * 1000).toLocaleString() : 'No timestamp'
+      console.log(`  ${index + 1}. ${apt.place} - ${apt.date} - ${dateStr} - Timestamp: ${apt.timestamp} - ${isNew ? '🆕 NEW' : '⏸️ OLD'}`)
+    })
+    
+    console.log(`[AppointmentService] New appointments (after timestamp filter): ${newAppointments.length}`)
 
     return newAppointments
   }

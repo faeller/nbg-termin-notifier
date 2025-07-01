@@ -6,6 +6,7 @@ import naive from 'naive-ui'
 
 import App from './App.vue'
 import router from './router'
+import { backgroundWorkerService } from './services/backgroundWorkerService'
 
 const app = createApp(App)
 
@@ -14,3 +15,20 @@ app.use(router)
 app.use(naive)
 
 app.mount('#app')
+
+// Initialize background worker service
+console.log('Background worker service initialized:', backgroundWorkerService)
+
+// Expose for debugging in console
+;(window as any).debugBackgroundWorker = {
+  service: backgroundWorkerService,
+  resetTimestamp: (subscriptionId: string) => backgroundWorkerService.resetLastNotifiedTimestamp(subscriptionId),
+  fixTimestamps: () => backgroundWorkerService.fixTimestampFormats(),
+  getSubscriptions: () => backgroundWorkerService.getSubscriptions(),
+  checkNow: () => {
+    const subscriptions = backgroundWorkerService.getSubscriptions()
+    subscriptions.forEach(sub => {
+      console.log(`Subscription ${sub.id}: lastNotified = ${sub.lastNotifiedTimestamp} (${new Date(sub.lastNotifiedTimestamp).toLocaleString()})`)
+    })
+  }
+}

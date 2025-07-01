@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { 
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import {
   NGrid, NGridItem, NCard, NSpace, NButton, NIcon, NText, NTime, NAlert,
-  NSpin, NEmpty, NSwitch, NCollapse, NCollapseItem, NBadge
+  NSpin, NEmpty, NSwitch, NCollapse, NCollapseItem, NH3, NBadge, NDivider, NModal
 } from 'naive-ui'
-import { Bell, BellOff, Clock, MapPin, ExternalLink } from '@vicons/tabler'
+import { Bell, BellOff, Clock, MapPin, ExternalLink, Filter, Settings, Plus } from '@vicons/tabler'
 import { useAppointmentStore } from '../stores/appointments'
 import { useMessage } from 'naive-ui'
+import FilterModal from '../components/FilterModal.vue'
+import SubscriptionManager from '../components/SubscriptionManager.vue'
+import CountdownTimer from '../components/CountdownTimer.vue'
 
 const store = useAppointmentStore()
 const message = useMessage()
@@ -16,7 +19,7 @@ const isPolling = ref(false)
 
 function toggleAppointmentType(appointmentTypeId: number) {
   store.toggleAppointmentType(appointmentTypeId)
-  
+
   if (store.selectedAppointmentTypes.includes(appointmentTypeId)) {
     message.success('Termintyp hinzugefügt!')
     if (!isPolling.value && store.hasNotificationPermission) {
@@ -35,12 +38,12 @@ function startPolling() {
     message.warning('Bitte wählen Sie mindestens einen Termintyp aus.')
     return
   }
-  
+
   if (!store.hasNotificationPermission) {
     message.warning('Bitte aktivieren Sie Benachrichtigungen in den Einstellungen.')
     return
   }
-  
+
   store.startPolling()
   isPolling.value = true
   message.success('Überwachung gestartet!')
@@ -56,6 +59,23 @@ function openReservationLink(url: string) {
   window.open(url, '_blank')
 }
 
+function openFilterModal(appointmentTypeId: number) {
+  // Always open modal for creating new subscription (allow multiple)
+  store.openFilterModal(appointmentTypeId)
+}
+
+function onSubscriptionCreated() {
+  store.refreshSubscriptions()
+  message.success('Filter-Überwachung erfolgreich aktiviert!')
+}
+
+function onSubscriptionUpdated() {
+  store.refreshSubscriptions()
+  message.success('Filter erfolgreich aktualisiert!')
+}
+
+const showSubscriptionManager = ref(false)
+
 
 onMounted(() => {
   // Initialize selected appointment types if needed
@@ -63,6 +83,17 @@ onMounted(() => {
     // Add default appointment type (Wohnung anmelden)
     store.toggleAppointmentType(1)
   }
+
+  // Load existing subscriptions
+  store.refreshSubscriptions()
+  
+  // Refresh subscriptions when modal closes to update counters
+  watch(showSubscriptionManager, (isOpen, wasOpen) => {
+    // Only refresh when modal was open and is now closing
+    if (wasOpen && !isOpen) {
+      store.refreshSubscriptions()
+    }
+  })
 })
 
 onUnmounted(() => {
@@ -79,57 +110,83 @@ onUnmounted(() => {
       <n-card title="Überwachung" size="medium">
         <n-space align="center" justify="space-between">
           <n-space align="center">
-            <n-switch 
-              v-model:value="isPolling" 
-              @update:value="isPolling ? startPolling() : stopPolling()"
-              :disabled="store.selectedAppointmentTypes.length === 0 || !store.hasNotificationPermission"
-            >
+            <n-switch v-model:value="isPolling" @update:value="isPolling ? startPolling() : stopPolling()"
+              :disabled="store.selectedAppointmentTypes.length === 0 || !store.hasNotificationPermission">
               <template #checked>
-                <n-icon><Bell /></n-icon>
+                <n-icon>
+                  <Bell />
+                </n-icon>
               </template>
               <template #unchecked>
-                <n-icon><BellOff /></n-icon>
+                <n-icon>
+                  <BellOff />
+                </n-icon>
               </template>
             </n-switch>
             <n-text>{{ isPolling ? 'Überwachung aktiv' : 'Überwachung gestoppt' }}</n-text>
           </n-space>
-          
-          <n-space align="center">
-            <n-icon><Clock /></n-icon>
-            <n-text>Alle {{ store.pollingFrequency / (60 * 1000) }} Minuten</n-text>
+
+          <n-space align="center" size="small">
+            <n-icon size="14">
+              <Clock />
+            </n-icon>
+            <n-text depth="2">Alle 15 Sekunden</n-text>
+            <CountdownTimer :interval-ms="15000" :is-active="isPolling" compact />
           </n-space>
         </n-space>
-        
-        <n-alert 
-          v-if="!store.hasNotificationPermission" 
-          type="warning" 
-          style="margin-top: 16px"
-        >
+
+        <n-alert v-if="!store.hasNotificationPermission" type="warning" style="margin-top: 16px">
           Bitte aktivieren Sie Benachrichtigungen in den Einstellungen, um Alerts zu erhalten.
         </n-alert>
       </n-card>
 
       <!-- Appointment Types Grid -->
       <div>
-        <h3 class="section-title">
+        <n-h3 prefix="bar" style="margin: 24px 0 20px 0">
           Verfügbare Termintypen
-        </h3>
-        
+        </n-h3>
+
         <n-grid :cols="1" :x-gap="16" :y-gap="16" responsive="screen">
-          <n-grid-item 
-            v-for="appointmentType in store.availableAppointmentTypes" 
-            :key="appointmentType.id"
-          >
-            <n-card 
-              :title="appointmentType.name"
+          <n-grid-item v-for="appointmentType in store.availableAppointmentTypes" :key="appointmentType.id">
+            <n-card :title="appointmentType.name"
               :class="{ 'selected-appointment': store.selectedAppointmentTypes.includes(appointmentType.id) }"
-              hoverable
-            >
+              hoverable>
               <template #header-extra>
-                <n-switch 
-                  :value="store.selectedAppointmentTypes.includes(appointmentType.id)"
-                  @update:value="() => toggleAppointmentType(appointmentType.id)"
-                />
+                <n-space>
+                  <n-button size="small" :type="store.hasActiveFilters(appointmentType.id) ? 'success' : 'default'"
+                    ghost @click.stop="openFilterModal(appointmentType.id)">
+                    <template #icon>
+                      <n-icon size="14">
+                        <Bell />
+                      </n-icon>
+                    </template><span>+</span>
+                  </n-button>
+                  
+                  <!-- Edit subscriptions button (only show if subscriptions exist) -->
+                  <n-button 
+                    v-if="store.activeSubscriptions.length > 0"
+                    size="small" 
+                    :type="showSubscriptionManager ? 'primary' : 'default'"
+                    ghost 
+                    @click.stop="showSubscriptionManager = !showSubscriptionManager"
+                  >
+                    <template #icon>
+                      <n-icon size="14">
+                        <Settings />
+                      </n-icon>
+                    </template>
+                    <n-badge 
+                      :value="store.activeSubscriptions.filter(s => s.filters.enabled).length"
+                      :show="store.activeSubscriptions.filter(s => s.filters.enabled).length > 0" 
+                      type="success"
+                      :size="12"
+                      style="margin-left: 4px;"
+                    />
+                  </n-button>
+                  
+                  <n-switch :value="store.selectedAppointmentTypes.includes(appointmentType.id)"
+                    @update:value="() => toggleAppointmentType(appointmentType.id)" />
+                </n-space>
               </template>
 
               <n-space vertical>
@@ -140,56 +197,47 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Error State -->
-                <n-alert 
-                  v-else-if="store.error && store.selectedAppointmentTypes.includes(appointmentType.id)" 
-                  type="error"
-                >
+                <n-alert v-else-if="store.error && store.selectedAppointmentTypes.includes(appointmentType.id)"
+                  type="error">
                   {{ store.error }}
                 </n-alert>
 
                 <!-- Appointments List -->
                 <div v-else-if="store.selectedAppointmentTypes.includes(appointmentType.id)">
                   <n-collapse>
-                    <n-collapse-item 
-                      title="Verfügbare Termine" 
-                      :name="appointmentType.id"
-                    >
+                    <n-collapse-item title="Verfügbare Termine" :name="appointmentType.id" style="padding: 8px 0;">
                       <template #header-extra>
-                        <n-badge 
-                          :value="store.getAvailableAppointments(appointmentType.id).length"
-                          :show="store.getAvailableAppointments(appointmentType.id).length > 0"
-                          type="success"
-                        />
+                        <n-badge :value="store.getAvailableAppointments(appointmentType.id).length"
+                          :show="store.getAvailableAppointments(appointmentType.id).length > 0" type="success" />
                       </template>
 
                       <n-space vertical v-if="store.getAvailableAppointments(appointmentType.id).length > 0">
-                        <n-card 
-                          v-for="appointment in store.getAvailableAppointments(appointmentType.id)" 
-                          :key="`${appointment.loc_id}-${appointment.timestamp}`"
-                          size="small"
-                          hoverable
-                          @click="openReservationLink(appointment.reservation_link)"
-                          style="cursor: pointer"
-                        >
+                        <n-card v-for="appointment in store.getAvailableAppointments(appointmentType.id)"
+                          :key="`${appointment.loc_id}-${appointment.timestamp}`" size="small" hoverable
+                          @click="openReservationLink(appointment.reservation_link)" style="cursor: pointer">
                           <n-space justify="space-between" align="center">
                             <n-space vertical size="small">
                               <n-space align="center">
-                                <n-icon><MapPin /></n-icon>
+                                <n-icon>
+                                  <MapPin />
+                                </n-icon>
                                 <n-text strong>{{ appointment.place2 || appointment.place }}</n-text>
                               </n-space>
                               <n-space align="center">
-                                <n-icon><Clock /></n-icon>
-                                <n-time 
-                                  v-if="appointment.timestamp" 
-                                  :time="appointment.timestamp * 1000" 
-                                  format="dd.MM.yyyy, HH:mm"
-                                />
+                                <n-icon>
+                                  <Clock />
+                                </n-icon>
+                                <n-time v-if="appointment.timestamp" :time="appointment.timestamp * 1000"
+                                  format="dd.MM.yyyy, HH:mm" />
                               </n-space>
                             </n-space>
-                            
-                            <n-button type="primary" size="small" @click.stop="openReservationLink(appointment.reservation_link)">
+
+                            <n-button type="primary" size="small"
+                              @click.stop="openReservationLink(appointment.reservation_link)">
                               <template #icon>
-                                <n-icon><ExternalLink /></n-icon>
+                                <n-icon>
+                                  <ExternalLink />
+                                </n-icon>
                               </template>
                               Buchen
                             </n-button>
@@ -197,11 +245,7 @@ onUnmounted(() => {
                         </n-card>
                       </n-space>
 
-                      <n-empty 
-                        v-else
-                        description="Keine Termine verfügbar"
-                        size="small"
-                      />
+                      <n-empty v-else description="Keine Termine verfügbar" size="small" />
                     </n-collapse-item>
                   </n-collapse>
                 </div>
@@ -215,20 +259,42 @@ onUnmounted(() => {
           </n-grid-item>
         </n-grid>
       </div>
+
     </n-space>
+
+    <!-- Filter Modal -->
+    <FilterModal v-model:show="store.showFilterModal" :appointment-type-id="store.filterModalAppointmentType"
+      :existing-subscription-id="store.filterModalExistingSubscriptionId" @subscription-created="onSubscriptionCreated"
+      @subscription-updated="onSubscriptionUpdated" @close="store.closeFilterModal" />
+    
+    <!-- Subscription Manager Modal -->
+    <n-modal
+      v-model:show="showSubscriptionManager"
+      preset="card"
+      :style="{ maxWidth: '800px', width: '90vw' }"
+      title="🔔 Benachrichtigungs-Abonnements verwalten"
+      size="large"
+      :bordered="false"
+      :segmented="{ content: 'soft', footer: 'soft' }"
+    >
+      <SubscriptionManager />
+    </n-modal>
   </div>
 </template>
 
 <style scoped>
-.section-title {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-color-1);
-}
-
 .selected-appointment {
   border: 2px solid var(--primary-color);
+}
+
+:deep(.n-collapse-item) {
+  border: none !important;
+}
+
+:deep(.n-collapse-item .n-collapse-item__header) {
+  border: none !important;
+  background: transparent !important;
+  padding: 12px 16px !important;
 }
 
 
