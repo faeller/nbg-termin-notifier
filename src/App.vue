@@ -62,6 +62,11 @@ async function requestNotifications() {
 }
 
 function updatePollingFrequency() {
+  // Enforce minimum of 5 seconds
+  const minSeconds = 5
+  if (pollingSeconds.value < minSeconds) {
+    pollingSeconds.value = minSeconds
+  }
   store.setPollingFrequency(pollingSeconds.value * 1000)
 }
 

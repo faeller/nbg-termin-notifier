@@ -28,7 +28,18 @@ export const useAppointmentStore = defineStore('appointments', () => {
   const isPollingActive = ref(savedPollingState === 'true')
   // Load polling frequency from localStorage with default fallback
   const savedPollingFrequency = localStorage.getItem('pollingFrequency')
-  const pollingFrequency = ref(savedPollingFrequency ? parseInt(savedPollingFrequency) : 15000) // 15 seconds default
+  const defaultFrequency = 15000 // 15 seconds default
+  const minPollingInterval = 5000 // 5 seconds minimum
+  let initialFrequency = savedPollingFrequency ? parseInt(savedPollingFrequency) : defaultFrequency
+  
+  // Ensure saved frequency meets minimum requirement
+  if (initialFrequency < minPollingInterval) {
+    console.warn(`Saved polling frequency ${initialFrequency}ms is below minimum ${minPollingInterval}ms. Using minimum value.`)
+    initialFrequency = minPollingInterval
+    localStorage.setItem('pollingFrequency', minPollingInterval.toString())
+  }
+  
+  const pollingFrequency = ref(initialFrequency)
   
   // Load backgroundImage from localStorage with default fallback
   const savedBackgroundImage = localStorage.getItem('backgroundImage')
@@ -178,12 +189,20 @@ export const useAppointmentStore = defineStore('appointments', () => {
   }
 
   function setPollingFrequency(frequency: number) {
-    pollingFrequency.value = frequency
+    // Enforce minimum polling interval to prevent API hammering
+    const minInterval = dataManagerService.getMinPollingInterval()
+    const validatedFrequency = Math.max(frequency, minInterval)
+    
+    if (frequency < minInterval) {
+      console.warn(`Polling frequency ${frequency}ms is below minimum ${minInterval}ms. Using ${validatedFrequency}ms instead.`)
+    }
+    
+    pollingFrequency.value = validatedFrequency
     // Save to localStorage
-    localStorage.setItem('pollingFrequency', frequency.toString())
+    localStorage.setItem('pollingFrequency', validatedFrequency.toString())
     // Update data manager and background worker intervals
-    dataManagerService.setPollingFrequency(frequency)
-    backgroundWorkerService.setCheckInterval(frequency)
+    dataManagerService.setPollingFrequency(validatedFrequency)
+    backgroundWorkerService.setCheckInterval(validatedFrequency)
   }
 
   function setBackgroundImage(imageUrl: string | null) {

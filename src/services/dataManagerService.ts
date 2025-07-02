@@ -22,6 +22,7 @@ class DataManagerService {
   private pollingInterval: number | null = null
   private checkInterval = 15000 // 15 seconds default
   private readonly cacheTimeout = 5000 // 5 seconds cache TTL
+  private readonly minPollingInterval = 5000 // 5 seconds minimum polling interval
   private activeAppointmentTypes = new Set<number>()
 
   /**
@@ -101,9 +102,15 @@ class DataManagerService {
 
   /**
    * Set polling frequency (affects all active monitoring)
+   * Enforces minimum interval of 5 seconds to prevent API hammering
    */
   setPollingFrequency(intervalMs: number) {
-    this.checkInterval = intervalMs
+    if (intervalMs < this.minPollingInterval) {
+      console.warn(`[DataManager] Polling interval ${intervalMs}ms is below minimum ${this.minPollingInterval}ms. Using minimum value.`)
+      this.checkInterval = this.minPollingInterval
+    } else {
+      this.checkInterval = intervalMs
+    }
     
     if (this.pollingInterval) {
       this.stopPolling()
@@ -118,6 +125,13 @@ class DataManagerService {
     const appointments = this.getCachedAppointments(appointmentTypeId)
     return appointments.reduce((latest, apt) => 
       Math.max(latest, apt.timestamp as number), 0)
+  }
+
+  /**
+   * Get the minimum allowed polling interval
+   */
+  getMinPollingInterval(): number {
+    return this.minPollingInterval
   }
 
   private async fetchAndCacheData(appointmentTypeId: number): Promise<AppointmentData[]> {
