@@ -1,5 +1,6 @@
 import { notificationService } from './notificationService'
 import { appointmentService, type AppointmentLocation, type AppointmentType } from './appointmentService'
+import { dataManagerService, type DataChangeEvent } from './dataManagerService'
 
 export interface TimeRange {
   start: string // HH:mm format
@@ -27,11 +28,12 @@ class BackgroundWorkerService {
   private workerInterval: number | null = null
   private checkInterval = 15000 // Default: 15 seconds for background checks
   private readonly storageKey = 'nbg-appointment-subscriptions'
+  private dataChangeUnsubscribe: (() => void) | null = null
 
   constructor() {
     this.loadSubscriptions()
     this.fixTimestampFormats() // Fix any existing timestamp format issues
-    this.startBackgroundWorker()
+    this.subscribeToDataChanges()
   }
 
   generateSubscriptionId(): string {
@@ -133,82 +135,51 @@ class BackgroundWorkerService {
     }
   }
 
-  private startBackgroundWorker() {
-    if (this.workerInterval) return
-
-    this.workerInterval = setInterval(async () => {
-      await this.checkAllSubscriptions()
-    }, this.checkInterval)
+  private subscribeToDataChanges() {
+    this.dataChangeUnsubscribe = dataManagerService.onDataChange(this.handleDataChange.bind(this))
   }
 
-  private stopBackgroundWorker() {
-    if (this.workerInterval) {
-      clearInterval(this.workerInterval)
-      this.workerInterval = null
-    }
-  }
-
-  private async checkAllSubscriptions() {
-    if (this.subscriptions.size === 0) return
-
-    console.log(`Checking ${this.subscriptions.size} subscriptions...`)
-
-    for (const subscription of this.subscriptions.values()) {
-      if (!subscription.filters.enabled) {
-        console.log(`Skipping disabled subscription ${subscription.id}`)
-        continue
-      }
-
-      console.log(`Checking subscription ${subscription.id} for appointment type ${subscription.appointmentTypeId}`)
-      
-      try {
-        await this.checkSubscription(subscription)
-      } catch (error) {
-        console.error(`Error checking subscription ${subscription.id}:`, error)
-      }
-    }
-  }
-
-  private async checkSubscription(subscription: SubscriptionConfig) {
-    const appointmentType = await this.getAppointmentTypeById(subscription.appointmentTypeId)
-    if (!appointmentType) {
-      console.log(`No appointment type found for ID ${subscription.appointmentTypeId}`)
+  private handleDataChange(event: DataChangeEvent) {
+    // Check if we have any subscriptions for this appointment type
+    const relevantSubscriptions = Array.from(this.subscriptions.values())
+      .filter(sub => sub.appointmentTypeId === event.appointmentTypeId && sub.filters.enabled)
+    
+    if (relevantSubscriptions.length === 0) {
       return
     }
 
-    console.log(`Checking appointments since timestamp: ${subscription.lastNotifiedTimestamp} (${new Date(subscription.lastNotifiedTimestamp).toLocaleString()})`)
-    console.log(`Filter criteria:`, {
-      enabledDays: subscription.filters.enabledDays,
-      allowedLocations: subscription.filters.allowedLocations,
-      timeRanges: subscription.filters.timeRanges,
-      enabled: subscription.filters.enabled
+    console.log(`[BackgroundWorker] Processing data change for appointment type ${event.appointmentTypeId}`)
+    console.log(`[BackgroundWorker] Found ${event.newAppointments.length} new appointments, ${relevantSubscriptions.length} relevant subscriptions`)
+
+    // Process each subscription
+    relevantSubscriptions.forEach(subscription => {
+      this.processSubscriptionForNewAppointments(subscription, event.newAppointments)
     })
+  }
 
-    const newAppointments = await appointmentService.checkForNewAppointments(
-      appointmentType,
-      subscription.lastNotifiedTimestamp
-    )
-
-    console.log(`Found ${newAppointments.length} new appointments for subscription ${subscription.id}`)
+  private async processSubscriptionForNewAppointments(subscription: SubscriptionConfig, newAppointments: AppointmentLocation[]) {
+    console.log(`[BackgroundWorker] Processing subscription ${subscription.id}`)
+    console.log(`[BackgroundWorker] Subscription last notified: ${subscription.lastNotifiedTimestamp}`)
     
-    if (newAppointments.length > 0) {
-      console.log('New appointments details:')
-      newAppointments.forEach((apt, index) => {
-        const appointmentDate = apt.timestamp ? new Date(apt.timestamp * 1000) : null
-        console.log(`  ${index + 1}. ${apt.place} - ${apt.date} - Timestamp: ${apt.timestamp} - Location ID: ${apt.loc_id}`)
-        if (appointmentDate) {
-          console.log(`     Date object: ${appointmentDate.toLocaleString()} - Day of week: ${appointmentDate.getDay()} - Time: ${appointmentDate.getHours()}:${appointmentDate.getMinutes().toString().padStart(2, '0')}`)
-        }
-      })
+    // Filter appointments that are newer than our last notification
+    const appointmentsToProcess = newAppointments.filter(apt => 
+      apt.timestamp && apt.timestamp > subscription.lastNotifiedTimestamp)
+    
+    console.log(`[BackgroundWorker] Found ${appointmentsToProcess.length} appointments newer than last notification`)
+    
+    if (appointmentsToProcess.length === 0) {
+      return
     }
 
-    const filteredAppointments = this.applyFilters(newAppointments, subscription.filters)
-
-    console.log(`After filtering: ${filteredAppointments.length} appointments match filters`)
+    // Apply subscription filters
+    const filteredAppointments = this.applyFilters(appointmentsToProcess, subscription.filters)
+    console.log(`[BackgroundWorker] After filtering: ${filteredAppointments.length} appointments match subscription filters`)
 
     if (filteredAppointments.length > 0) {
-      console.log(`Sending ${filteredAppointments.length} filtered notifications`)
-      
+      const appointmentType = await this.getAppointmentTypeById(subscription.appointmentTypeId)
+      if (!appointmentType) return
+
+      // Send notifications
       for (const appointment of filteredAppointments) {
         await this.sendFilteredAppointmentNotification(appointment, appointmentType, subscription)
       }
@@ -218,9 +189,19 @@ class BackgroundWorkerService {
       subscription.lastNotifiedTimestamp = latestTimestamp
       this.saveSubscriptions()
       
-      console.log(`Updated last notified timestamp to ${latestTimestamp}`)
+      console.log(`[BackgroundWorker] Updated subscription ${subscription.id} last notified timestamp to ${latestTimestamp}`)
     }
   }
+
+  private startBackgroundWorker() {
+    // Background worker is now event-driven, no polling needed
+    console.log('[BackgroundWorker] Background worker started (event-driven mode)')
+  }
+
+  private stopBackgroundWorker() {
+    console.log('[BackgroundWorker] Background worker stopped')
+  }
+
 
   private applyFilters(appointments: AppointmentLocation[], filters: FilterCriteria): AppointmentLocation[] {
     console.log(`Applying filters to ${appointments.length} appointments`)
@@ -383,11 +364,8 @@ class BackgroundWorkerService {
 
   setCheckInterval(intervalMs: number) {
     this.checkInterval = intervalMs
-    // Restart the background worker with new interval
-    if (this.workerInterval) {
-      this.stopBackgroundWorker()
-      this.startBackgroundWorker()
-    }
+    // No longer needed as we're event-driven, but keeping for compatibility
+    console.log(`[BackgroundWorker] Check interval set to ${intervalMs}ms (event-driven mode)`)
   }
 
   startWorker() {
@@ -404,6 +382,10 @@ class BackgroundWorkerService {
 
   destroy() {
     this.stopBackgroundWorker()
+    if (this.dataChangeUnsubscribe) {
+      this.dataChangeUnsubscribe()
+      this.dataChangeUnsubscribe = null
+    }
     this.subscriptions.clear()
   }
 }

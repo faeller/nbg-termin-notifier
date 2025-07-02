@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { appointmentService, appointmentTypes, type AppointmentData, type AppointmentLocation } from '../services/appointmentService'
+import { ref, computed, onUnmounted } from 'vue'
+import { appointmentTypes, type AppointmentData, type AppointmentLocation } from '../services/appointmentService'
 import { notificationService, NotificationPermission } from '../services/notificationService'
 import { backgroundWorkerService, type SubscriptionConfig } from '../services/backgroundWorkerService'
+import { dataManagerService, type DataChangeEvent } from '../services/dataManagerService'
 import posthog from 'posthog-js'
 
 // Helper function to check if analytics tracking is allowed
@@ -22,7 +23,6 @@ export const useAppointmentStore = defineStore('appointments', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const notificationPermission = ref<NotificationPermission>(notificationService.getPermissionStatus())
-  const pollingInterval = ref<number | null>(null)
   // Load polling state from localStorage with default fallback
   const savedPollingState = localStorage.getItem('isPollingActive')
   const isPollingActive = ref(savedPollingState === 'true')
@@ -72,11 +72,11 @@ export const useAppointmentStore = defineStore('appointments', () => {
       isLoading.value = true
       error.value = null
       
-      const data = await appointmentService.fetchAppointmentDates(appointmentType)
+      const data = await dataManagerService.getFreshData(appointmentTypeId)
       appointmentData.value.set(appointmentTypeId, data)
       
       // Update last known timestamp
-      const latestTimestamp = getLatestTimestamp(data)
+      const latestTimestamp = dataManagerService.getLatestTimestamp(appointmentTypeId)
       if (latestTimestamp > 0) {
         lastKnownTimestamps.value.set(appointmentTypeId, latestTimestamp)
       }
@@ -88,28 +88,27 @@ export const useAppointmentStore = defineStore('appointments', () => {
     }
   }
 
-  async function checkForNewAppointments() {
-    if (selectedAppointmentTypes.value.length === 0) return
-
-    try {
-      for (const appointmentTypeId of selectedAppointmentTypes.value) {
-        const appointmentType = appointmentTypes.find(type => type.id === appointmentTypeId)
-        if (!appointmentType) continue
-
-        const lastTimestamp = lastKnownTimestamps.value.get(appointmentTypeId) || 0
-        const newAppointments = await appointmentService.checkForNewAppointments(appointmentType, lastTimestamp)
-        
-        if (newAppointments.length > 0 && hasNotificationPermission.value) {
-          for (const appointment of newAppointments) {
+  // Handle data updates from the central data manager
+  function handleDataChange(event: DataChangeEvent) {
+    // Update local cache
+    appointmentData.value.set(event.appointmentTypeId, event.data)
+    
+    // Update timestamp
+    const latestTimestamp = dataManagerService.getLatestTimestamp(event.appointmentTypeId)
+    lastKnownTimestamps.value.set(event.appointmentTypeId, latestTimestamp)
+    
+    // Handle notifications for new appointments
+    if (event.newAppointments.length > 0 && hasNotificationPermission.value) {
+      const appointmentType = appointmentTypes.find(type => type.id === event.appointmentTypeId)
+      if (appointmentType) {
+        event.newAppointments.forEach(async (appointment) => {
+          try {
             await notificationService.showAppointmentNotification(appointment, appointmentType.name)
+          } catch (error) {
+            console.error('Error showing notification:', error)
           }
-        }
-
-        // Update data and timestamp
-        await fetchAppointmentData(appointmentTypeId)
+        })
       }
-    } catch (err) {
-      console.error('Error checking for new appointments:', err)
     }
   }
 
@@ -119,7 +118,17 @@ export const useAppointmentStore = defineStore('appointments', () => {
     
     if (index === -1) {
       selectedAppointmentTypes.value.push(appointmentTypeId)
-      fetchAppointmentData(appointmentTypeId)
+      
+      // Add to data manager for monitoring
+      dataManagerService.addAppointmentType(appointmentTypeId)
+      
+      // Get initial cached data if available
+      const cachedData = dataManagerService.getCachedData(appointmentTypeId)
+      if (cachedData.length > 0) {
+        appointmentData.value.set(appointmentTypeId, cachedData)
+        const latestTimestamp = dataManagerService.getLatestTimestamp(appointmentTypeId)
+        lastKnownTimestamps.value.set(appointmentTypeId, latestTimestamp)
+      }
       
       // Track appointment type enabled
       if (canTrack()) {
@@ -130,6 +139,11 @@ export const useAppointmentStore = defineStore('appointments', () => {
       }
     } else {
       selectedAppointmentTypes.value.splice(index, 1)
+      
+      // Remove from data manager
+      dataManagerService.removeAppointmentType(appointmentTypeId)
+      
+      // Clear local data
       appointmentData.value.delete(appointmentTypeId)
       lastKnownTimestamps.value.delete(appointmentTypeId)
       
@@ -147,12 +161,8 @@ export const useAppointmentStore = defineStore('appointments', () => {
   }
 
   function startPolling() {
-    if (pollingInterval.value) return
-    
-    pollingInterval.value = setInterval(() => {
-      checkForNewAppointments()
-    }, pollingFrequency.value)
-    // Also start background worker
+    // Data manager handles polling automatically when appointment types are active
+    // Just start background worker for notifications
     backgroundWorkerService.startWorker()
     // Save polling state
     isPollingActive.value = true
@@ -160,11 +170,7 @@ export const useAppointmentStore = defineStore('appointments', () => {
   }
 
   function stopPolling() {
-    if (pollingInterval.value) {
-      clearInterval(pollingInterval.value)
-      pollingInterval.value = null
-    }
-    // Also stop background worker
+    // Stop background worker
     backgroundWorkerService.stopWorker()
     // Save polling state
     isPollingActive.value = false
@@ -175,12 +181,9 @@ export const useAppointmentStore = defineStore('appointments', () => {
     pollingFrequency.value = frequency
     // Save to localStorage
     localStorage.setItem('pollingFrequency', frequency.toString())
-    // Also update background worker interval
+    // Update data manager and background worker intervals
+    dataManagerService.setPollingFrequency(frequency)
     backgroundWorkerService.setCheckInterval(frequency)
-    if (pollingInterval.value) {
-      stopPolling()
-      startPolling()
-    }
   }
 
   function setBackgroundImage(imageUrl: string | null) {
@@ -247,19 +250,37 @@ export const useAppointmentStore = defineStore('appointments', () => {
     return getSubscriptionsForAppointmentType(appointmentTypeId).some(sub => sub.filters.enabled)
   }
 
+  // Subscribe to data changes from the central data manager
+  const unsubscribeDataChanges = dataManagerService.onDataChange(handleDataChange)
+
   // Initialize store - load data for previously selected appointment types
   function initializeStore() {
-    // Synchronize background worker with current polling frequency
+    // Synchronize services with current polling frequency
+    dataManagerService.setPollingFrequency(pollingFrequency.value)
     backgroundWorkerService.setCheckInterval(pollingFrequency.value)
     
+    // Add previously selected appointment types to data manager
     selectedAppointmentTypes.value.forEach(appointmentTypeId => {
-      fetchAppointmentData(appointmentTypeId)
+      dataManagerService.addAppointmentType(appointmentTypeId)
+      
+      // Get any cached data immediately
+      const cachedData = dataManagerService.getCachedData(appointmentTypeId)
+      if (cachedData.length > 0) {
+        appointmentData.value.set(appointmentTypeId, cachedData)
+        const latestTimestamp = dataManagerService.getLatestTimestamp(appointmentTypeId)
+        lastKnownTimestamps.value.set(appointmentTypeId, latestTimestamp)
+      }
     })
     
     // Restore polling state if it was active
     if (isPollingActive.value && selectedAppointmentTypes.value.length > 0) {
       startPolling()
     }
+  }
+
+  // Cleanup function for when store is destroyed
+  function destroyStore() {
+    unsubscribeDataChanges()
   }
 
   return {
@@ -280,7 +301,6 @@ export const useAppointmentStore = defineStore('appointments', () => {
     isNotificationSupported,
     requestNotificationPermission,
     fetchAppointmentData,
-    checkForNewAppointments,
     toggleAppointmentType,
     startPolling,
     stopPolling,
@@ -293,6 +313,7 @@ export const useAppointmentStore = defineStore('appointments', () => {
     closeFilterModal,
     getSubscriptionsForAppointmentType,
     hasActiveFilters,
-    initializeStore
+    initializeStore,
+    destroyStore
   }
 })
